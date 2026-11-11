@@ -1111,7 +1111,7 @@ async function renderUsuarios() {
                 <div class="form-group"><label>Nombre Completo *</label><input id="usNombre" required></div>
                 <div class="form-group"><label>Usuario *</label><input id="usLogin" required></div>
                 <div class="form-group"><label>Contraseña Inicial *</label><input id="usClave" type="password" minlength="6" required></div>
-                <div class="form-group"><label>Rol *</label><select id="usRol">${roles.map(r => `<option value="${r.idRol}">${esc(r.nombre)}</option>`).join('')}</select></div>
+                <div class="form-group"><label>Rol *</label><select id="usRol">${roles.map(r => `<option value="${r.idRol}">${esc(r.nombreRol)}</option>`).join('')}</select></div>
                 <div class="form-group"><button type="submit" class="btn btn-primary">Crear Usuario</button></div>
             </form>
         </div>
