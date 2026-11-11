@@ -8,4 +8,9 @@ import java.util.Optional;
 public interface RolPort {
     List<Rol> findAll();
     Optional<Rol> findById(Integer idRol);
+
+    /** Roles con activo=1. */
+    List<Rol> findAllActivos();
+
+    Optional<Rol> findActivoById(Integer idRol);
 }

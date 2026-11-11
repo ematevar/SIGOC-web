@@ -9,7 +9,7 @@ public record UsuarioSesion(
         String nombreCompleto,
         RolSistema rol,
         boolean requiereCambioClave
-) {
+) implements java.io.Serializable {
     public UsuarioSesion conClaveCambiada() {
         return new UsuarioSesion(idUsuario, username, nombreCompleto, rol, false);
     }

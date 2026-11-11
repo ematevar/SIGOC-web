@@ -29,6 +29,19 @@ public class RolJpaAdapter implements RolPort {
                 .map(this::toModel);
     }
 
+    @Override
+    public List<Rol> findAllActivos() {
+        return repository.findByActivoTrueOrderByIdRol().stream()
+                .map(this::toModel)
+                .toList();
+    }
+
+    @Override
+    public Optional<Rol> findActivoById(Integer idRol) {
+        return repository.findByIdRolAndActivoTrue(idRol)
+                .map(this::toModel);
+    }
+
     private  Rol toModel(RolEntity entity) {
         return new Rol(entity.getIdRol(), entity.getNombreRol());
     }
