@@ -279,4 +279,16 @@ public class CasosUsoConfig {
                                          EgresoPort egresoPort, Clock clock) {
         return new CerrarPlanilla(cierrePort, obraPort, asistenciaPort, empleadoPort, egresoPort, clock);
     }
+
+    // --- Reportes (Parte 8) ---
+
+    @Bean
+    public GenerarReporte generarReporte(ReporteQueryPort reporteQueryPort) {
+        return new GenerarReporte(reporteQueryPort);
+    }
+
+    @Bean
+    public ExportarReporte exportarReporte(GenerarReporte generarReporte, ExportadorReportePort exportadorPort) {
+        return new ExportarReporte(generarReporte, exportadorPort);
+    }
 }
