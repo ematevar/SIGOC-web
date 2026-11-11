@@ -3,7 +3,7 @@
 ## 1. Entorno de Ejecución Verificado
 
 - **Lenguaje / Runtime:** Java 21 (`--release 21`), Spring Boot `4.1.2`, Maven Wrapper (`mvnw.cmd`).
-- **Base de Datos:** MySQL `8.0.46` (`sigoc_db`, 21 tablas mapeadas con `spring.jpa.hibernate.ddl-auto=none`).
+- **Base de Datos:** MySQL `8.0.46` (`sigoc_db`, 22 tablas mapeadas — 17 base + 5 módulo pagos/cambio — con `spring.jpa.hibernate.ddl-auto=none`).
 - **Zona Horaria:** `America/Lima` centralizada mediante bean `Clock`.
 - **Variables Externalizadas:** `.env` / `.env.example` (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `PAYPAL_BASE_URL`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAGO_ENLACE_HORAS`).
 

@@ -1,6 +1,6 @@
 # Especificación de Requisitos de Software — SIGOC Web y Decisiones de Arquitectura (SAD)
 
-> **Propósito:** Documentar las precisiones funcionales, reglas de negocio (`RN-01`..`RN-28`), estructura de base de datos (21 tablas) y decisiones de arquitectura hexagonal implementadas en **SIGOC Web** (`Spring Boot 4.1.2`, `Java 21`, `MySQL 8`, `Thymeleaf`).
+> **Propósito:** Documentar las precisiones funcionales, reglas de negocio (`RN-01`..`RN-28`), estructura de base de datos (**22 tablas**: 17 base + 5 módulo pagos/cambio) y decisiones de arquitectura hexagonal implementadas en **SIGOC Web** (`Spring Boot 4.1.2`, `Java 21`, `MySQL 8`, `Thymeleaf`).
 
 ---
 
