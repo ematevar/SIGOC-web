@@ -7,6 +7,7 @@ import com.sigoc.sigoc_web.domain.models.RolSistema;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
 import com.sigoc.sigoc_web.domain.ports.out.ProveedorPort;
 import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
+import com.sigoc.sigoc_web.domain.validators.ValidadorSigoc;
 
 /**
  * RF-09: crea o actualiza un proveedor validando RUC de 11 dígitos numéricos único.
@@ -25,9 +26,7 @@ public class GuardarProveedor {
             throw new ReglaNegocioException("Completa el campo obligatorio: razon_social.");
         }
         String rucLimpio = ruc == null ? "" : ruc.trim();
-        if (rucLimpio.length() != 11 || !rucLimpio.chars().allMatch(Character::isDigit)) {
-            throw new ReglaNegocioException("El RUC debe tener exactamente 11 dígitos numéricos (RF-09).");
-        }
+        ValidadorSigoc.validarRuc(rucLimpio);
         if (proveedorPort.existsByRuc(rucLimpio, idProveedor)) {
             throw new ReglaNegocioException("Ya existe un proveedor registrado con el RUC " + rucLimpio + " (RF-09).");
         }

@@ -7,6 +7,7 @@ import com.sigoc.sigoc_web.domain.models.RolSistema;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
 import com.sigoc.sigoc_web.domain.ports.out.EmpleadoPort;
 import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
+import com.sigoc.sigoc_web.domain.validators.ValidadorSigoc;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -29,9 +30,7 @@ public class GuardarEmpleado {
             throw new ReglaNegocioException("Completa el campo obligatorio: nombres_apellidos.");
         }
         String dniLimpio = dni == null ? "" : dni.trim();
-        if (dniLimpio.length() != 8 || !dniLimpio.chars().allMatch(Character::isDigit)) {
-            throw new ReglaNegocioException("El DNI debe tener exactamente 8 dígitos numéricos (RF-10).");
-        }
+        ValidadorSigoc.validarDni(dniLimpio);
         if (empleadoPort.existsByDni(dniLimpio, idEmpleado)) {
             throw new ReglaNegocioException("Ya existe un trabajador registrado con el DNI " + dniLimpio + " (RF-10).");
         }
