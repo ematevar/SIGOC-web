@@ -14,5 +14,8 @@ public interface MaterialPort {
 
     Material guardar(Material material);
 
+    /** Actualiza el stock (y opcionalmente el costo de referencia) tras una compra o consumo. */
+    void actualizarStock(Integer idMaterial, java.math.BigDecimal nuevoStock, java.math.BigDecimal nuevoCostoRef);
+
     void desactivar(Integer idMaterial);
 }

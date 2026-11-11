@@ -124,6 +124,15 @@ class MaterialesProveedoresTest {
         }
 
         @Override
+        public void actualizarStock(Integer idMaterial, BigDecimal nuevoStock, BigDecimal nuevoCostoRef) {
+            Material m = datos.get(idMaterial);
+            m.setStockActual(nuevoStock);
+            if (nuevoCostoRef != null) {
+                m.setCostoUnitarioRef(nuevoCostoRef);
+            }
+        }
+
+        @Override
         public void desactivar(Integer idMaterial) {
             datos.get(idMaterial).setActivo(false);
         }

@@ -61,6 +61,18 @@ public class MaterialJpaAdapter implements MaterialPort {
 
     @Override
     @Transactional
+    public void actualizarStock(Integer idMaterial, java.math.BigDecimal nuevoStock, java.math.BigDecimal nuevoCostoRef) {
+        MaterialEntity e = repository.findById(idMaterial)
+                .filter(MaterialEntity::isActivo)
+                .orElseThrow(() -> new RecursoNoEncontradoException("El material no existe o está inactivo."));
+        e.setStockActual(nuevoStock);
+        if (nuevoCostoRef != null) {
+            e.setCostoUnitarioRef(nuevoCostoRef);
+        }
+    }
+
+    @Override
+    @Transactional
     public void desactivar(Integer idMaterial) {
         MaterialEntity e = repository.findById(idMaterial)
                 .orElseThrow(() -> new RecursoNoEncontradoException("El material no existe."));

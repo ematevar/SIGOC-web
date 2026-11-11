@@ -175,4 +175,34 @@ public class CasosUsoConfig {
     public EliminarProveedor eliminarProveedor(ProveedorPort proveedorPort) {
         return new EliminarProveedor(proveedorPort);
     }
+
+    // ---------- Compras y consumos (RF-07, RF-08) ----------
+
+    @Bean
+    public ListarCompras listarCompras(CompraPort compraPort) {
+        return new ListarCompras(compraPort);
+    }
+
+    @Bean
+    public RegistrarCompra registrarCompra(CompraPort compraPort, ProveedorPort proveedorPort,
+                                           ObraPort obraPort, MaterialPort materialPort,
+                                           EgresoPort egresoPort, Clock clock) {
+        return new RegistrarCompra(compraPort, proveedorPort, obraPort, materialPort, egresoPort, clock);
+    }
+
+    @Bean
+    public ListarConsumos listarConsumos(ConsumoPort consumoPort) {
+        return new ListarConsumos(consumoPort);
+    }
+
+    @Bean
+    public RegistrarConsumo registrarConsumo(ConsumoPort consumoPort, MaterialPort materialPort,
+                                             PartidaPort partidaPort, ObraPort obraPort, Clock clock) {
+        return new RegistrarConsumo(consumoPort, materialPort, partidaPort, obraPort, clock);
+    }
+
+    @Bean
+    public ObtenerConsumoAcumuladoPartida obtenerConsumoAcumuladoPartida(ConsumoPort consumoPort) {
+        return new ObtenerConsumoAcumuladoPartida(consumoPort);
+    }
 }
