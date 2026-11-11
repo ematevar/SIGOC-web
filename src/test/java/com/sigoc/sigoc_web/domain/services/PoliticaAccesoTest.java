@@ -31,8 +31,10 @@ class PoliticaAccesoTest {
     }
 
     @Test
-    void normalizaRolesHeredados() {
+    void normalizaRolesHeredadosYValidaCuatroPerfiles() {
         assertEquals(RolSistema.RESIDENTE, RolSistema.desde("ingeniero").orElseThrow());
-        assertFalse(RolSistema.esValido("CONTADOR"));
+        assertEquals(RolSistema.CONTADOR, RolSistema.desde("contador").orElseThrow());
+        assertTrue(RolSistema.esValido("CONTADOR"));
+        assertFalse(RolSistema.esValido("INVITADO"));
     }
 }

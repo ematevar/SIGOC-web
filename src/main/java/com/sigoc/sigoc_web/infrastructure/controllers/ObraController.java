@@ -10,6 +10,7 @@ import com.sigoc.sigoc_web.infrastructure.controllers.dto.ObraDtos.ObraResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,27 +42,31 @@ public class ObraController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
     public ObraResponse crear(UsuarioSesion actor, @Valid @RequestBody GuardarObraRequest body) {
         return ObraResponse.de(guardarObra.ejecutar(
-                actor, null, body.nombre(), body.cliente(), body.ubicacion(),
+                actor, null, body.idCliente(), body.nombre(), body.cliente(), body.ubicacion(),
                 body.presupuestoTotal(), body.fechaInicioPlan(), body.fechaFinPlan(), body.estado()));
     }
 
     @PutMapping("/{id}")
+    @Transactional
     public ObraResponse actualizar(UsuarioSesion actor, @PathVariable Integer id,
                                    @Valid @RequestBody GuardarObraRequest body) {
         return ObraResponse.de(guardarObra.ejecutar(
-                actor, id, body.nombre(), body.cliente(), body.ubicacion(),
+                actor, id, body.idCliente(), body.nombre(), body.cliente(), body.ubicacion(),
                 body.presupuestoTotal(), body.fechaInicioPlan(), body.fechaFinPlan(), body.estado()));
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Void> eliminar(UsuarioSesion actor, @PathVariable Integer id) {
         eliminarObra.ejecutar(actor, id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/cerrar")
+    @Transactional
     public ResponseEntity<Void> cerrar(UsuarioSesion actor, @PathVariable Integer id) {
         cerrarObra.ejecutar(actor, id);
         return ResponseEntity.noContent().build();

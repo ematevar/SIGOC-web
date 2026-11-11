@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "partida")
-public class PartidaEntity {
+public class PartidaEntity extends EntidadAuditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

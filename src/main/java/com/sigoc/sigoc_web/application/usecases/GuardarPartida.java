@@ -48,7 +48,10 @@ public class GuardarPartida {
         if (unidadMedida == null || unidadMedida.isBlank()) {
             throw new ReglaNegocioException("Completa el campo obligatorio: unidad_medida.");
         }
-        if (metradoPlanificado == null || metradoPlanificado.compareTo(BigDecimal.ZERO) <= 0) {
+        BigDecimal metradoBd = metradoPlanificado == null
+                ? null
+                : metradoPlanificado.setScale(2, RoundingMode.HALF_UP);
+        if (metradoBd == null || metradoBd.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ReglaNegocioException("El campo metrado_planificado debe ser mayor que cero.");
         }
         if (pesoPresupuestal == null) {
@@ -64,6 +67,16 @@ public class GuardarPartida {
             partida = partidaPort.findById(idPartida)
                     .filter(Partida::isActivo)
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la partida."));
+            if (partidaPort.tieneMovimientos(idPartida)) {
+                if (!idObra.equals(partida.getIdObra())) {
+                    throw new ReglaNegocioException(
+                            "No puedes mover una partida con avances, consumos o producción a otra obra (C15).");
+                }
+                if (!unidadMedida.trim().equalsIgnoreCase(partida.getUnidadMedida().trim())) {
+                    throw new ReglaNegocioException(
+                            "No puedes cambiar la unidad de medida de una partida que ya registra movimientos (C15).");
+                }
+            }
         } else {
             partida = new Partida();
             partida.setActivo(true);
@@ -80,7 +93,7 @@ public class GuardarPartida {
         partida.setIdObra(idObra);
         partida.setNombre(nombre.trim());
         partida.setUnidadMedida(unidadMedida.trim());
-        partida.setMetradoPlanificado(metradoPlanificado.setScale(2, RoundingMode.HALF_UP));
+        partida.setMetradoPlanificado(metradoBd);
         partida.setPesoPresupuestal(peso);
         return partidaPort.guardar(partida);
     }

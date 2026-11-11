@@ -19,7 +19,7 @@ public class ListarClientes {
     }
 
     public List<Cliente> ejecutar(UsuarioSesion actor) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.CONTADOR);
         return clientePort.findAllActivos();
     }
 }

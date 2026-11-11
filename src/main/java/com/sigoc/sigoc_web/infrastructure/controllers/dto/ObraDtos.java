@@ -14,7 +14,8 @@ public final class ObraDtos {
 
     public record GuardarObraRequest(
             @NotBlank String nombre,
-            @NotBlank String cliente,
+            Integer idCliente,
+            String cliente,
             String ubicacion,
             @NotNull BigDecimal presupuestoTotal,
             @NotNull LocalDate fechaInicioPlan,
@@ -25,6 +26,7 @@ public final class ObraDtos {
 
     public record ObraResponse(
             Integer idObra,
+            Integer idCliente,
             String nombre,
             String cliente,
             String ubicacion,
@@ -37,6 +39,7 @@ public final class ObraDtos {
         public static ObraResponse de(Obra o) {
             return new ObraResponse(
                     o.getIdObra(),
+                    o.getIdCliente(),
                     o.getNombre(),
                     o.getCliente(),
                     o.getUbicacion(),

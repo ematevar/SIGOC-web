@@ -19,7 +19,7 @@ public class ListarConsumos {
     }
 
     public List<ConsumoMaterial> ejecutar(UsuarioSesion actor, Integer idPartida) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.ALMACENERO);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.ALMACENERO, RolSistema.CONTADOR);
         return idPartida == null ? consumoPort.findAllActivos() : consumoPort.findActivosByPartida(idPartida);
     }
 }

@@ -37,9 +37,10 @@ public class RegistrarProduccion {
     public ProduccionEmpleado ejecutar(UsuarioSesion actor, Integer idEmpleado, Integer idPartida,
                                        LocalDate fecha, BigDecimal cantidadProducida) {
         PoliticaAcceso.verificar(actor, RolSistema.RESIDENTE);
+        BigDecimal cantidadBd = cantidadProducida == null ? null : cantidadProducida.setScale(2, RoundingMode.HALF_UP);
         if (idEmpleado == null || idEmpleado <= 0 || idPartida == null || idPartida <= 0
                 || fecha == null || fecha.isAfter(LocalDate.now(clock))
-                || cantidadProducida == null || cantidadProducida.compareTo(BigDecimal.ZERO) <= 0) {
+                || cantidadBd == null || cantidadBd.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ReglaNegocioException("Datos de producción inválidos.");
         }
         Empleado empleado = empleadoPort.findById(idEmpleado).filter(Empleado::isActivo).orElse(null);

@@ -37,7 +37,8 @@ public class GuardarEmpleado {
         if (cargo == null || cargo.isBlank()) {
             throw new ReglaNegocioException("Completa el campo obligatorio: cargo.");
         }
-        if (jornalDiario == null || jornalDiario.compareTo(BigDecimal.ZERO) <= 0) {
+        BigDecimal jornalBd = jornalDiario == null ? null : jornalDiario.setScale(2, RoundingMode.HALF_UP);
+        if (jornalBd == null || jornalBd.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ReglaNegocioException("El campo jornal_diario debe ser mayor que cero.");
         }
         if (fechaIngreso == null) {
@@ -57,7 +58,7 @@ public class GuardarEmpleado {
         empleado.setNombresApellidos(nombresApellidos.trim());
         empleado.setDni(dniLimpio);
         empleado.setCargo(cargo.trim());
-        empleado.setJornalDiario(jornalDiario.setScale(2, RoundingMode.HALF_UP));
+        empleado.setJornalDiario(jornalBd);
         empleado.setFechaIngreso(fechaIngreso);
         return empleadoPort.guardar(empleado);
     }

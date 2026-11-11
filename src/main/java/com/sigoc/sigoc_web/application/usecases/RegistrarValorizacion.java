@@ -32,7 +32,7 @@ public class RegistrarValorizacion {
     public Valorizacion ejecutar(UsuarioSesion actor, Integer idObra, String periodo,
                                 LocalDate fechaEmision, BigDecimal porcentajeAvancePeriodo,
                                 BigDecimal montoValorizado) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.CONTADOR);
         if (idObra == null || idObra <= 0) {
             throw new ReglaNegocioException("Selecciona una obra válida.");
         }

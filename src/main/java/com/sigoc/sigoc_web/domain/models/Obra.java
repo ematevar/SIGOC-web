@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 
 public class Obra {
     private Integer idObra;
+    private Integer idCliente;
     private String nombre;
     private String cliente;
     private String ubicacion;
@@ -19,7 +20,14 @@ public class Obra {
     public Obra() {
     }
     public Obra(Integer idObra, String nombre, String cliente, String ubicacion, BigDecimal presupuestoTotal, LocalDate fechaInicioPlan, LocalDate fechaFinPlan, String estado, boolean activo, LocalDateTime fechaBorrado) {
+        this(idObra, null, nombre, cliente, ubicacion, presupuestoTotal, fechaInicioPlan, fechaFinPlan, estado, activo, fechaBorrado);
+    }
+
+    public Obra(Integer idObra, Integer idCliente, String nombre, String cliente, String ubicacion,
+                BigDecimal presupuestoTotal, LocalDate fechaInicioPlan, LocalDate fechaFinPlan,
+                String estado, boolean activo, LocalDateTime fechaBorrado) {
         this.idObra = idObra;
+        this.idCliente = idCliente;
         this.nombre = nombre;
         this.cliente = cliente;
         this.ubicacion = ubicacion;
@@ -37,6 +45,14 @@ public class Obra {
 
     public void setIdObra(Integer idObra) {
         this.idObra = idObra;
+    }
+
+    public Integer getIdCliente() {
+        return idCliente;
+    }
+
+    public void setIdCliente(Integer idCliente) {
+        this.idCliente = idCliente;
     }
 
     public String getNombre() {

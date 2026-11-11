@@ -70,7 +70,14 @@ public class AutenticacionInterceptor implements HandlerInterceptor {
                     "Debe cambiar la contraseña inicial antes de usar el sistema.");
             return false;
         }
+        ContextoAuditoria.fijarUsuario(usuario.idUsuario());
         return true;
+    }
+
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
+                                Object handler, Exception ex) {
+        ContextoAuditoria.limpiar();
     }
 
     private boolean sigueHabilitado(UsuarioSesion sesion) {

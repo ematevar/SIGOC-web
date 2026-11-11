@@ -19,7 +19,7 @@ public class ListarCompras {
     }
 
     public List<CompraMaterial> ejecutar(UsuarioSesion actor) {
-        PoliticaAcceso.verificar(actor, RolSistema.ALMACENERO, RolSistema.ADMIN);
+        PoliticaAcceso.verificar(actor, RolSistema.ALMACENERO, RolSistema.ADMIN, RolSistema.CONTADOR);
         return compraPort.findAllActivas();
     }
 }

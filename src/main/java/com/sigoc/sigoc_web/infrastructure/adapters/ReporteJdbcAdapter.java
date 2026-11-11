@@ -39,7 +39,7 @@ public class ReporteJdbcAdapter implements ReporteQueryPort {
                            SELECT a.porcentaje_avance FROM avance_partida a
                            WHERE a.id_partida=p.id_partida AND a.activo=1 AND a.fecha_reporte<=fechas.fecha_reporte
                            ORDER BY a.fecha_reporte DESC, a.id_avance DESC LIMIT 1
-                       ), 0)) / NULLIF(SUM(p.peso_presupuestal), 0), 2) AS avance_ejecutado_pct
+                       ), 0)) / 100.0, 2) AS avance_ejecutado_pct
                 FROM obra o
                 JOIN partida p ON p.id_obra=o.id_obra AND p.activo=1
                 JOIN (

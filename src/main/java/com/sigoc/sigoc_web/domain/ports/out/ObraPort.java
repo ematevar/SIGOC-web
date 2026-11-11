@@ -10,6 +10,10 @@ public interface ObraPort {
 
     Optional<Obra> findById(Integer idObra);
 
+    default Optional<Obra> findByIdParaActualizar(Integer idObra) {
+        return findById(idObra);
+    }
+
     Obra guardar(Obra obra);
 
     boolean tieneMovimientos(Integer idObra);

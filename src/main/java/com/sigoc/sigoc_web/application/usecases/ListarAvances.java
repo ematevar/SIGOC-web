@@ -20,7 +20,7 @@ public class ListarAvances {
     }
 
     public List<AvancePartida> ejecutar(UsuarioSesion actor, Integer idPartida, Integer idObra) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.CONTADOR);
         if (idPartida != null) {
             return avancePort.findActivosByPartida(idPartida);
         }

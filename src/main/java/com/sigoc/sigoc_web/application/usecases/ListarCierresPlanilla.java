@@ -19,7 +19,7 @@ public class ListarCierresPlanilla {
     }
 
     public List<CierrePlanilla> ejecutar(UsuarioSesion actor, Integer idObra) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.CONTADOR);
         if (idObra != null && idObra > 0) {
             return cierrePlanillaPort.findActivosByObra(idObra);
         }

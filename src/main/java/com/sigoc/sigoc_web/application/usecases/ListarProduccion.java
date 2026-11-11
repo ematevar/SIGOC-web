@@ -19,7 +19,7 @@ public class ListarProduccion {
     }
 
     public List<ProduccionEmpleado> ejecutar(UsuarioSesion actor, Integer idPartida) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.CONTADOR);
         return idPartida == null ? produccionPort.findAllActivas() : produccionPort.findActivasByPartida(idPartida);
     }
 }

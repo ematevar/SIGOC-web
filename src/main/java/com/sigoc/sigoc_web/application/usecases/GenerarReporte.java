@@ -23,7 +23,7 @@ public class GenerarReporte {
 
     public Reporte ejecutar(UsuarioSesion actor, TipoReporte tipo, Integer idObra,
                             LocalDate desde, LocalDate hasta) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.CONTADOR);
         if (tipo == null) {
             throw new ReglaNegocioException("Especifica el tipo de reporte.");
         }

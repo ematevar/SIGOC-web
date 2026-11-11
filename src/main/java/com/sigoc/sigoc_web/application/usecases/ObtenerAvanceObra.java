@@ -34,7 +34,7 @@ public class ObtenerAvanceObra {
     }
 
     public BigDecimal ejecutar(UsuarioSesion actor, Integer idObra) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.CONTADOR);
         obraPort.findById(idObra)
                 .filter(Obra::isActivo)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la obra."));

@@ -19,7 +19,7 @@ public class ListarProveedores {
     }
 
     public List<Proveedor> ejecutar(UsuarioSesion actor) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.ALMACENERO);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.ALMACENERO, RolSistema.CONTADOR);
         return proveedorPort.findAllActivos();
     }
 }

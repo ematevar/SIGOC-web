@@ -19,7 +19,7 @@ public class ListarPagos {
     }
 
     public List<Pago> ejecutar(UsuarioSesion actor, Integer idObra) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.CONTADOR);
         if (idObra != null && idObra > 0) {
             return pagoPort.findActivosByObra(idObra);
         }

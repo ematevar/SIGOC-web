@@ -19,7 +19,7 @@ public class ListarIngresos {
     }
 
     public List<Ingreso> ejecutar(UsuarioSesion actor, Integer idObra) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.CONTADOR);
         if (idObra != null && idObra > 0) {
             return ingresoPort.findActivosByObra(idObra);
         }

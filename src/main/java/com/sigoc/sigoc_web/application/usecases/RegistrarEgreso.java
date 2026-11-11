@@ -30,10 +30,11 @@ public class RegistrarEgreso {
 
     public Egreso ejecutar(UsuarioSesion actor, Integer idObra, LocalDate fecha,
                           String concepto, BigDecimal monto) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.CONTADOR);
+        BigDecimal montoBd = monto == null ? null : monto.setScale(2, RoundingMode.HALF_UP);
         if (idObra == null || idObra <= 0 || fecha == null || fecha.isAfter(LocalDate.now(clock))
                 || concepto == null || concepto.isBlank()
-                || monto == null || monto.compareTo(BigDecimal.ZERO) <= 0) {
+                || montoBd == null || montoBd.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ReglaNegocioException("Verifica obra, fecha, concepto y monto válido.");
         }
 
@@ -52,7 +53,7 @@ public class RegistrarEgreso {
         egreso.setFecha(fecha);
         egreso.setTipoEgreso("Otro");
         egreso.setConcepto(conceptoLimpio);
-        egreso.setMonto(monto.setScale(2, RoundingMode.HALF_UP));
+        egreso.setMonto(montoBd);
         egreso.setActivo(true);
         return egresoPort.guardar(egreso);
     }

@@ -75,8 +75,8 @@ public class CasosUsoConfig {
     }
 
     @Bean
-    public GuardarObra guardarObra(ObraPort obraPort) {
-        return new GuardarObra(obraPort);
+    public GuardarObra guardarObra(ObraPort obraPort, ClientePort clientePort) {
+        return new GuardarObra(obraPort, clientePort);
     }
 
     @Bean

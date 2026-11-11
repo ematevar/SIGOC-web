@@ -24,7 +24,7 @@ public class ListarMaterialesPartida {
     }
 
     public List<PartidaMaterial> ejecutar(UsuarioSesion actor, Integer idPartida) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.ALMACENERO);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.ALMACENERO, RolSistema.CONTADOR);
         partidaPort.findById(idPartida)
                 .filter(Partida::isActivo)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la partida."));

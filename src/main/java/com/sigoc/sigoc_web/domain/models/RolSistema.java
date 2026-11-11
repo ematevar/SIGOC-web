@@ -3,12 +3,13 @@ package com.sigoc.sigoc_web.domain.models;
 import java.util.Optional;
 
 /**
- * Los tres perfiles definidos en el SRS V4 (RF-01).
+ * Los cuatro perfiles definidos en el SRS Web (RF-01).
  */
 public enum RolSistema {
     ADMIN("Administrador"),
     RESIDENTE("Residente de Obra"),
-    ALMACENERO("Almacenero");
+    ALMACENERO("Almacenero"),
+    CONTADOR("Contador");
 
     private final String etiqueta;
 
@@ -38,11 +39,14 @@ public enum RolSistema {
         if (r.contains("ALMACEN")) {
             return Optional.of(ALMACENERO);
         }
+        if (r.contains("CONTADOR")) {
+            return Optional.of(CONTADOR);
+        }
         return Optional.empty();
     }
 
     /**
-     * Indica si un nombre de rol de BD es un perfil válido del sistema (excluye CONTADOR, etc.).
+     * Indica si un nombre de rol de BD es un perfil válido del sistema.
      */
     public static boolean esValido(String nombreRol) {
         return desde(nombreRol).isPresent();

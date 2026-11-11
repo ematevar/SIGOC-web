@@ -34,7 +34,7 @@ public class EmitirComprobante {
 
     public Comprobante ejecutar(UsuarioSesion actor, Integer idValorizacion,
                                String tipoComprobante, String serieNumero) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.CONTADOR);
         Valorizacion val = valorizacionPort.findById(idValorizacion)
                 .filter(Valorizacion::isActivo)
                 .orElseThrow(() -> new RecursoNoEncontradoException("La valorización indicada no existe."));

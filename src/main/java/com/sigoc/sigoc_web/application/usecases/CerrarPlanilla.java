@@ -37,14 +37,14 @@ public class CerrarPlanilla {
     }
 
     public CierrePlanilla ejecutar(UsuarioSesion actor, Integer idObra, LocalDate desde, LocalDate hasta) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.CONTADOR);
         if (actor == null || actor.idUsuario() == null || actor.idUsuario() <= 0
                 || idObra == null || idObra <= 0 || desde == null || hasta == null
                 || hasta.isBefore(desde) || hasta.isAfter(LocalDate.now(clock))) {
             throw new ReglaNegocioException("Verifica la obra y el rango de fechas (sin fechas futuras).");
         }
 
-        Obra obra = obraPort.findById(idObra).orElse(null);
+        Obra obra = obraPort.findByIdParaActualizar(idObra).orElse(null);
         if (obra == null || !obra.isOperable()) {
             throw new ReglaNegocioException("La obra no existe o no está operativa (RF-14).");
         }
@@ -67,9 +67,7 @@ public class CerrarPlanilla {
         BigDecimal total = BigDecimal.ZERO;
 
         for (Map.Entry<Integer, Long> entry : diasPorEmpleado.entrySet()) {
-            Empleado emp = empleadoPort.findById(entry.getKey())
-                    .filter(Empleado::isActivo)
-                    .orElse(null);
+            Empleado emp = empleadoPort.findById(entry.getKey()).orElse(null);
             if (emp == null || emp.getJornalDiario() == null) {
                 continue;
             }

@@ -19,7 +19,7 @@ public class ListarAsistencias {
     }
 
     public List<Asistencia> ejecutar(UsuarioSesion actor, Integer idObra) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.CONTADOR);
         return idObra == null ? asistenciaPort.findAllActivas() : asistenciaPort.findActivasByObra(idObra);
     }
 }

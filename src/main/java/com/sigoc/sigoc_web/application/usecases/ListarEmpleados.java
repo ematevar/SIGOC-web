@@ -19,7 +19,7 @@ public class ListarEmpleados {
     }
 
     public List<Empleado> ejecutar(UsuarioSesion actor) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.CONTADOR);
         return empleadoPort.findAllActivos();
     }
 }

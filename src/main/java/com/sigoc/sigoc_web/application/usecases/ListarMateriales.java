@@ -19,7 +19,7 @@ public class ListarMateriales {
     }
 
     public List<Material> ejecutar(UsuarioSesion actor) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.ALMACENERO, RolSistema.RESIDENTE);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.ALMACENERO, RolSistema.RESIDENTE, RolSistema.CONTADOR);
         return materialPort.findAllActivos();
     }
 }

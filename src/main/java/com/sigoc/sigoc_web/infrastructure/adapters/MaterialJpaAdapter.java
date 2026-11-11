@@ -41,6 +41,12 @@ public class MaterialJpaAdapter implements MaterialPort {
 
     @Override
     @Transactional
+    public Optional<Material> findByIdParaActualizar(Integer idMaterial) {
+        return repository.findByIdParaActualizar(idMaterial).map(this::toModel);
+    }
+
+    @Override
+    @Transactional
     public Material guardar(Material material) {
         MaterialEntity e;
         if (material.getIdMaterial() == null) {

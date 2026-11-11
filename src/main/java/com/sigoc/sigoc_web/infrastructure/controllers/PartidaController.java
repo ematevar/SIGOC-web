@@ -6,6 +6,7 @@ import com.sigoc.sigoc_web.infrastructure.controllers.dto.PartidaDtos.*;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -45,6 +46,7 @@ public class PartidaController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
     public PartidaResponse crear(UsuarioSesion actor, @Valid @RequestBody GuardarPartidaRequest body) {
         return PartidaResponse.de(guardarPartida.ejecutar(
                 actor, null, body.idObra(), body.nombre(), body.unidadMedida(),
@@ -52,6 +54,7 @@ public class PartidaController {
     }
 
     @PutMapping("/{id}")
+    @Transactional
     public PartidaResponse actualizar(UsuarioSesion actor, @PathVariable Integer id,
                                       @Valid @RequestBody GuardarPartidaRequest body) {
         return PartidaResponse.de(guardarPartida.ejecutar(
@@ -60,6 +63,7 @@ public class PartidaController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Void> eliminar(UsuarioSesion actor, @PathVariable Integer id) {
         eliminarPartida.ejecutar(actor, id);
         return ResponseEntity.noContent().build();

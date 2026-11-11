@@ -39,7 +39,7 @@ public class ProcesarPago {
 
     public Pago ejecutar(UsuarioSesion actor, Integer idObra, Integer idValorizacion,
                          Integer idComprobante, BigDecimal monto, String metodoPago, String codigoOperacion) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.CONTADOR);
         if (idObra == null || idObra <= 0) {
             throw new ReglaNegocioException("Selecciona una obra válida para el pago.");
         }

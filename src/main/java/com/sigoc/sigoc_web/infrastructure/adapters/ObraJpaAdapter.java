@@ -38,11 +38,18 @@ public class ObraJpaAdapter implements ObraPort {
 
     @Override
     @Transactional
+    public Optional<Obra> findByIdParaActualizar(Integer idObra) {
+        return repository.findByIdParaActualizar(idObra).map(this::toModel);
+    }
+
+    @Override
+    @Transactional
     public Obra guardar(Obra obra) {
         ObraEntity e = obra.getIdObra() == null
                 ? new ObraEntity()
                 : repository.findById(obra.getIdObra())
                         .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la obra."));
+        e.setIdCliente(obra.getIdCliente());
         e.setNombre(obra.getNombre());
         e.setCliente(obra.getCliente());
         e.setUbicacion(obra.getUbicacion());
@@ -57,7 +64,7 @@ public class ObraJpaAdapter implements ObraPort {
     @Override
     @Transactional(readOnly = true)
     public boolean tieneMovimientos(Integer idObra) {
-        String[] tablas = {"partida", "asistencia", "ingreso", "egreso", "cierre_planilla"};
+        String[] tablas = {"partida", "asistencia", "ingreso", "egreso", "cierre_planilla", "valorizacion", "pago"};
         for (String tabla : tablas) {
             boolean existe = !em.createNativeQuery(
                             "SELECT 1 FROM " + tabla + " WHERE id_obra = :idObra AND activo = 1")
@@ -93,6 +100,7 @@ public class ObraJpaAdapter implements ObraPort {
     private Obra toModel(ObraEntity e) {
         return new Obra(
                 e.getIdObra(),
+                e.getIdCliente(),
                 e.getNombre(),
                 e.getCliente(),
                 e.getUbicacion(),

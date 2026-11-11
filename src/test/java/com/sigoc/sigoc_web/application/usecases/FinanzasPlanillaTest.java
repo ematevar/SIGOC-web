@@ -17,6 +17,7 @@ class FinanzasPlanillaTest {
     private static final Clock FIJO = Clock.fixed(Instant.parse("2026-04-15T12:00:00Z"), ZoneOffset.UTC);
     private static final UsuarioSesion ADMIN = new UsuarioSesion(1, "admin", "Admin", RolSistema.ADMIN, false);
     private static final UsuarioSesion RESIDENTE = new UsuarioSesion(2, "res", "Res", RolSistema.RESIDENTE, false);
+    private static final UsuarioSesion CONTADOR = new UsuarioSesion(4, "cont", "Contador", RolSistema.CONTADOR, false);
 
     @Test
     void ingresoExigeRangoPlanificadoDeObraYSoloAdmin() {
@@ -96,6 +97,25 @@ class FinanzasPlanillaTest {
         CerrarPlanilla uc = new CerrarPlanilla(cierrePort, obraPort, asistPort, empPort, egresoPort, FIJO);
         assertThrows(ReglaNegocioException.class,
                 () -> uc.ejecutar(ADMIN, 1, LocalDate.of(2026, 4, 6), LocalDate.of(2026, 4, 12)));
+    }
+
+    @Test
+    void contadorPuedeCerrarPlanillaEIncluyeEmpleadoDesactivadoConAsistenciaC17() {
+        ObraPort obraPort = obraActiva(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30));
+        CierresFake cierrePort = new CierresFake();
+        EgresosFake egresoPort = new EgresosFake();
+        EmpleadosFake empPort = new EmpleadosFake();
+        Empleado retirado = new Empleado(12, "Pedro Ruiz", "11223344", "Peon",
+                new BigDecimal("100.00"), LocalDate.of(2026, 1, 1), false, LocalDateTime.now());
+        empPort.datos.put(12, retirado);
+
+        AsistenciasFake asistPort = new AsistenciasFake();
+        asistPort.datos.add(asistencia(1, 12, 1, LocalDate.of(2026, 4, 6), "PRESENTE"));
+
+        CierrePlanilla cierre = new CerrarPlanilla(cierrePort, obraPort, asistPort, empPort, egresoPort, FIJO)
+                .ejecutar(CONTADOR, 1, LocalDate.of(2026, 4, 6), LocalDate.of(2026, 4, 12));
+        assertEquals(new BigDecimal("100.00"), cierre.getMontoTotal());
+        assertEquals(1, egresoPort.datos.size());
     }
 
     private static Asistencia asistencia(int id, int idEmp, int idObra, LocalDate fecha, String estado) {

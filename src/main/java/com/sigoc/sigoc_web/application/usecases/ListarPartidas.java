@@ -19,7 +19,7 @@ public class ListarPartidas {
     }
 
     public List<Partida> ejecutar(UsuarioSesion actor, Integer idObra) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.ALMACENERO);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.ALMACENERO, RolSistema.CONTADOR);
         return idObra == null ? partidaPort.findAllActivas() : partidaPort.findActivasByObra(idObra);
     }
 }

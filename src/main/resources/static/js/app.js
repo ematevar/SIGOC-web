@@ -8,22 +8,22 @@ const sesion = {
 };
 
 const MODULOS = [
-    { id: 'INICIO', label: 'Panel Principal', roles: ['ADMIN', 'RESIDENTE', 'ALMACENERO'] },
-    { id: 'OBRAS', label: 'Obras', roles: ['ADMIN'] },
-    { id: 'PARTIDAS', label: 'Partidas y Presupuesto', roles: ['ADMIN', 'RESIDENTE'] },
-    { id: 'AVANCES', label: 'Avances Físicos', roles: ['RESIDENTE', 'ADMIN'] },
-    { id: 'MATERIALES', label: 'Materiales y Stock', roles: ['ALMACENERO', 'ADMIN'] },
-    { id: 'PROVEEDORES', label: 'Proveedores', roles: ['ADMIN'] },
-    { id: 'COMPRAS', label: 'Compras de Materiales', roles: ['ALMACENERO', 'ADMIN'] },
-    { id: 'CONSUMOS', label: 'Consumo de Materiales', roles: ['RESIDENTE', 'ADMIN'] },
-    { id: 'PERSONAL', label: 'Personal', roles: ['ADMIN', 'RESIDENTE'] },
-    { id: 'ASISTENCIA', label: 'Asistencia', roles: ['RESIDENTE', 'ADMIN'] },
-    { id: 'PRODUCCION', label: 'Producción Diaria', roles: ['RESIDENTE', 'ADMIN'] },
-    { id: 'FINANZAS', label: 'Finanzas y Planillas', roles: ['ADMIN'] },
-    { id: 'CLIENTES', label: 'Clientes', roles: ['ADMIN'] },
-    { id: 'VALORIZACIONES', label: 'Valorizaciones y Facturas', roles: ['ADMIN', 'RESIDENTE'] },
-    { id: 'PAGOS', label: 'Pasarela de Pagos', roles: ['ADMIN'] },
-    { id: 'REPORTES', label: 'Reportes Gerenciales', roles: ['ADMIN'] },
+    { id: 'INICIO', label: 'Panel Principal', roles: ['ADMIN', 'RESIDENTE', 'ALMACENERO', 'CONTADOR'] },
+    { id: 'OBRAS', label: 'Obras', roles: ['ADMIN', 'CONTADOR'] },
+    { id: 'PARTIDAS', label: 'Partidas y Presupuesto', roles: ['ADMIN', 'RESIDENTE', 'CONTADOR'] },
+    { id: 'AVANCES', label: 'Avances Físicos', roles: ['RESIDENTE', 'ADMIN', 'CONTADOR'] },
+    { id: 'MATERIALES', label: 'Materiales y Stock', roles: ['ALMACENERO', 'ADMIN', 'CONTADOR'] },
+    { id: 'PROVEEDORES', label: 'Proveedores', roles: ['ADMIN', 'CONTADOR'] },
+    { id: 'COMPRAS', label: 'Compras de Materiales', roles: ['ALMACENERO', 'ADMIN', 'CONTADOR'] },
+    { id: 'CONSUMOS', label: 'Consumo de Materiales', roles: ['RESIDENTE', 'ADMIN', 'CONTADOR'] },
+    { id: 'PERSONAL', label: 'Personal', roles: ['ADMIN', 'RESIDENTE', 'CONTADOR'] },
+    { id: 'ASISTENCIA', label: 'Asistencia', roles: ['RESIDENTE', 'ADMIN', 'CONTADOR'] },
+    { id: 'PRODUCCION', label: 'Producción Diaria', roles: ['RESIDENTE', 'ADMIN', 'CONTADOR'] },
+    { id: 'FINANZAS', label: 'Finanzas y Planillas', roles: ['ADMIN', 'CONTADOR'] },
+    { id: 'CLIENTES', label: 'Clientes', roles: ['ADMIN', 'RESIDENTE', 'CONTADOR'] },
+    { id: 'VALORIZACIONES', label: 'Valorizaciones y Facturas', roles: ['ADMIN', 'RESIDENTE', 'CONTADOR'] },
+    { id: 'PAGOS', label: 'Pasarela de Pagos', roles: ['ADMIN', 'CONTADOR'] },
+    { id: 'REPORTES', label: 'Reportes Gerenciales', roles: ['ADMIN', 'CONTADOR'] },
     { id: 'USUARIOS', label: 'Usuarios y Roles', roles: ['ADMIN'] }
 ];
 
@@ -179,14 +179,25 @@ async function renderInicio() {
 }
 
 async function renderObras() {
-    const obras = await api('/api/obras');
+    const [obras, clientes] = await Promise.all([
+        api('/api/obras'),
+        api('/api/clientes').catch(() => [])
+    ]);
+    const puedeEscribir = sesion.rol === 'ADMIN';
     let editId = null;
     moduleContainer.innerHTML = `
+        ${puedeEscribir ? `
         <div class="card">
             <h3 id="obraFormTitulo">Registrar Obra</h3>
             <form id="formObra" class="form-grid">
                 <div class="form-group"><label>Nombre *</label><input id="obNombre" required></div>
-                <div class="form-group"><label>Cliente *</label><input id="obCliente" required></div>
+                <div class="form-group"><label>Cliente Registrado</label>
+                    <select id="obIdCliente">
+                        <option value="">-- Otro / ingreso manual --</option>
+                        ${clientes.map(c => `<option value="${c.idCliente}">${esc(c.nombreRazonSocial)} (${esc(c.numeroDocumento)})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group"><label>Razón Social Cliente *</label><input id="obCliente" required></div>
                 <div class="form-group"><label>Ubicación</label><input id="obUbicacion"></div>
                 <div class="form-group"><label>Presupuesto (S/) *</label><input id="obPresup" type="number" step="0.01" min="1" required></div>
                 <div class="form-group"><label>Inicio Plan *</label><input id="obIni" type="date" required></div>
@@ -203,11 +214,11 @@ async function renderObras() {
                     <button type="button" id="btnObLimpiar" class="btn btn-secondary">Limpiar</button>
                 </div>
             </form>
-        </div>
+        </div>` : '<div class="alert alert-info">Vista de consulta (solo el Administrador puede crear, editar o cerrar obras).</div>'}
         <div class="card">
             <h3>Listado de Obras</h3>
             <div class="table-wrap"><table>
-                <thead><tr><th>ID</th><th>Nombre</th><th>Cliente</th><th>Presupuesto</th><th>Planificación</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>ID</th><th>Nombre</th><th>Cliente</th><th>Presupuesto</th><th>Planificación</th><th>Estado</th>${puedeEscribir ? '<th>Acciones</th>' : ''}</tr></thead>
                 <tbody id="tbObras"></tbody>
             </table></div>
         </div>`;
@@ -221,17 +232,32 @@ async function renderObras() {
             <td>S/ ${Number(o.presupuestoTotal).toFixed(2)}</td>
             <td>${esc(o.fechaInicioPlan)} → ${esc(o.fechaFinPlan)}</td>
             <td><span class="badge ${o.operable ? 'badge-ok' : 'badge-info'}">${esc(o.estado)}</span></td>
-            <td>
-                <button class="btn btn-secondary btn-sm" data-edit="${o.idObra}">Editar</button>
+            ${puedeEscribir ? `<td>
+                ${o.operable ? `<button class="btn btn-secondary btn-sm" data-edit="${o.idObra}">Editar</button>` : ''}
                 ${o.operable ? `<button class="btn btn-warning btn-sm" data-close="${o.idObra}">Cerrar</button>` : ''}
                 <button class="btn btn-danger btn-sm" data-del="${o.idObra}">Eliminar</button>
-            </td>
+            </td>` : ''}
         </tr>`).join('');
+
+    if (!puedeEscribir) return;
+
+    const obIdCliente = document.getElementById('obIdCliente');
+    const obCliente = document.getElementById('obCliente');
+    obIdCliente.onchange = () => {
+        const cli = clientes.find(c => String(c.idCliente) === obIdCliente.value);
+        if (cli) {
+            obCliente.value = cli.nombreRazonSocial;
+            obCliente.readOnly = true;
+        } else {
+            obCliente.readOnly = false;
+        }
+    };
 
     document.getElementById('btnObLimpiar').onclick = () => {
         editId = null;
         document.getElementById('obraFormTitulo').textContent = 'Registrar Obra';
         document.getElementById('formObra').reset();
+        obCliente.readOnly = false;
     };
 
     tb.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
@@ -240,7 +266,9 @@ async function renderObras() {
         editId = o.idObra;
         document.getElementById('obraFormTitulo').textContent = `Editar Obra #${editId}`;
         document.getElementById('obNombre').value = o.nombre;
-        document.getElementById('obCliente').value = o.cliente;
+        obIdCliente.value = o.idCliente ? String(o.idCliente) : '';
+        obCliente.value = o.cliente;
+        obCliente.readOnly = Boolean(o.idCliente);
         document.getElementById('obUbicacion').value = o.ubicacion || '';
         document.getElementById('obPresup').value = o.presupuestoTotal;
         document.getElementById('obIni').value = o.fechaInicioPlan;
@@ -270,8 +298,9 @@ async function renderObras() {
         e.preventDefault();
         try {
             const payload = {
+                idCliente: obIdCliente.value ? Number(obIdCliente.value) : null,
                 nombre: document.getElementById('obNombre').value.trim(),
-                cliente: document.getElementById('obCliente').value.trim(),
+                cliente: obCliente.value.trim(),
                 ubicacion: document.getElementById('obUbicacion').value.trim(),
                 presupuestoTotal: Number(document.getElementById('obPresup').value),
                 fechaInicioPlan: document.getElementById('obIni').value,
@@ -293,7 +322,7 @@ async function renderObras() {
 async function renderPartidas() {
     const obras = await api('/api/obras');
     const materiales = await api('/api/materiales');
-    const esAdmin = sesion.rol === 'ADMIN';
+    const esAdmin = sesion.rol === 'ADMIN' || sesion.rol === 'RESIDENTE';
     let idObraSel = obras[0] ? obras[0].idObra : 0;
 
     moduleContainer.innerHTML = `
@@ -441,6 +470,7 @@ async function renderPartidas() {
 
 async function renderAvances() {
     const obras = await api('/api/obras');
+    const esResidente = sesion.rol === 'RESIDENTE';
     let idObra = obras[0] ? obras[0].idObra : 0;
 
     moduleContainer.innerHTML = `
@@ -456,6 +486,7 @@ async function renderAvances() {
                 </div>
             </div>
         </div>
+        ${esResidente ? `
         <div class="card">
             <h3>Registrar Avance de Partida (RF-05)</h3>
             <form id="formAvance" class="form-grid">
@@ -465,7 +496,7 @@ async function renderAvances() {
                 <div class="form-group"><label>Observaciones</label><input id="avObs"></div>
                 <div class="form-group"><button type="submit" class="btn btn-primary">Registrar Avance</button></div>
             </form>
-        </div>
+        </div>` : '<div class="alert alert-info">Vista de solo lectura: solo el Residente de Obra registra avances físicos (RF-05).</div>'}
         <div class="card">
             <h3>Historial de Avances</h3>
             <div class="table-wrap"><table>
@@ -484,7 +515,10 @@ async function renderAvances() {
         const pct = Number(pond.avanceAcumulado || 0);
         document.getElementById('avBar').style.width = `${Math.min(100, pct)}%`;
         document.getElementById('avPctTxt').textContent = `${pct.toFixed(2)}%`;
-        document.getElementById('avPartida').innerHTML = partidas.map(p => `<option value="${p.idPartida}">${esc(p.nombre)} (Peso ${p.pesoPresupuestal}%)</option>`).join('');
+        const avPartida = document.getElementById('avPartida');
+        if (avPartida) {
+            avPartida.innerHTML = partidas.map(p => `<option value="${p.idPartida}">${esc(p.nombre)} (Peso ${p.pesoPresupuestal}%)</option>`).join('');
+        }
         document.getElementById('tbAvances').innerHTML = lista.map(a => {
             const p = partidas.find(x => x.idPartida === a.idPartida);
             return `<tr><td>${a.idAvance}</td><td>${esc(p ? p.nombre : a.idPartida)}</td><td>${esc(a.fechaReporte)}</td><td><strong>${a.porcentajeAvance}%</strong></td><td>${esc(a.observaciones)}</td></tr>`;
@@ -495,28 +529,30 @@ async function renderAvances() {
         idObra = Number(e.target.value);
         await cargarAvancesObra();
     };
-    document.getElementById('formAvance').onsubmit = async (e) => {
-        e.preventDefault();
-        try {
-            const res = await api('/api/avances', {
-                method: 'POST',
-                body: {
-                    idPartida: Number(document.getElementById('avPartida').value),
-                    fechaReporte: document.getElementById('avFecha').value,
-                    porcentajeAvance: Number(document.getElementById('avPct').value),
-                    observaciones: document.getElementById('avObs').value.trim()
-                }
-            });
-            mostrarAlerta(`Avance registrado. Avance acumulado de obra: ${res.avanceObra}%`);
-            await cargarAvancesObra();
-        } catch (err) { mostrarAlerta(err.message, 'error'); }
-    };
+    if (esResidente) {
+        document.getElementById('formAvance').onsubmit = async (e) => {
+            e.preventDefault();
+            try {
+                const res = await api('/api/avances', {
+                    method: 'POST',
+                    body: {
+                        idPartida: Number(document.getElementById('avPartida').value),
+                        fechaReporte: document.getElementById('avFecha').value,
+                        porcentajeAvance: Number(document.getElementById('avPct').value),
+                        observaciones: document.getElementById('avObs').value.trim()
+                    }
+                });
+                mostrarAlerta(`Avance registrado. Avance acumulado de obra: ${res.avanceObra}%`);
+                await cargarAvancesObra();
+            } catch (err) { mostrarAlerta(err.message, 'error'); }
+        };
+    }
     await cargarAvancesObra();
 }
 
 async function renderMateriales() {
     const materiales = await api('/api/materiales');
-    const esAdmin = sesion.rol === 'ADMIN';
+    const esAdmin = sesion.rol === 'ADMIN' || sesion.rol === 'ALMACENERO';
     await cargarAlertasStock();
 
     moduleContainer.innerHTML = `
@@ -580,7 +616,9 @@ async function renderMateriales() {
 
 async function renderProveedores() {
     const proveedores = await api('/api/proveedores');
+    const puedeEscribir = sesion.rol === 'ADMIN';
     moduleContainer.innerHTML = `
+        ${puedeEscribir ? `
         <div class="card">
             <h3>Registrar Proveedor</h3>
             <form id="formProv" class="form-grid">
@@ -590,17 +628,18 @@ async function renderProveedores() {
                 <div class="form-group"><label>Dirección</label><input id="prDir"></div>
                 <div class="form-group"><button type="submit" class="btn btn-primary">Guardar</button></div>
             </form>
-        </div>
+        </div>` : '<div class="alert alert-info">Vista de consulta (solo el Administrador gestiona proveedores).</div>'}
         <div class="card">
             <h3>Proveedores Activos</h3>
             <div class="table-wrap"><table>
-                <thead><tr><th>ID</th><th>Razón Social</th><th>RUC</th><th>Teléfono</th><th>Dirección</th><th>Acción</th></tr></thead>
+                <thead><tr><th>ID</th><th>Razón Social</th><th>RUC</th><th>Teléfono</th><th>Dirección</th>${puedeEscribir ? '<th>Acción</th>' : ''}</tr></thead>
                 <tbody>
-                    ${proveedores.map(p => `<tr><td>${p.idProveedor}</td><td>${esc(p.razonSocial)}</td><td>${esc(p.ruc)}</td><td>${esc(p.telefono)}</td><td>${esc(p.direccion)}</td><td><button class="btn btn-danger btn-sm" data-delpr="${p.idProveedor}">Eliminar</button></td></tr>`).join('')}
+                    ${proveedores.map(p => `<tr><td>${p.idProveedor}</td><td>${esc(p.razonSocial)}</td><td>${esc(p.ruc)}</td><td>${esc(p.telefono)}</td><td>${esc(p.direccion)}</td>${puedeEscribir ? `<td><button class="btn btn-danger btn-sm" data-delpr="${p.idProveedor}">Eliminar</button></td>` : ''}</tr>`).join('')}
                 </tbody>
             </table></div>
         </div>`;
 
+    if (!puedeEscribir) return;
     document.querySelectorAll('[data-delpr]').forEach(b => b.onclick = async () => {
         if (!confirm('¿Eliminar proveedor?')) return;
         try {
@@ -681,6 +720,7 @@ async function renderConsumos() {
     const [obras, materiales, consumos] = await Promise.all([
         api('/api/obras'), api('/api/materiales'), api('/api/consumos')
     ]);
+    const esResidente = sesion.rol === 'RESIDENTE';
     const partidasAll = [];
     for (const o of obras) {
         const ps = await api(`/api/partidas?idObra=${o.idObra}`);
@@ -688,6 +728,7 @@ async function renderConsumos() {
     }
 
     moduleContainer.innerHTML = `
+        ${esResidente ? `
         <div class="card">
             <h3>Registrar Consumo de Material en Partida (RF-08)</h3>
             <form id="formConsumo" class="form-grid">
@@ -697,7 +738,7 @@ async function renderConsumos() {
                 <div class="form-group"><label>Cantidad *</label><input id="csCant" type="number" step="0.01" min="0.01" required></div>
                 <div class="form-group"><button type="submit" class="btn btn-primary">Registrar Consumo</button></div>
             </form>
-        </div>
+        </div>` : '<div class="alert alert-info">Vista de solo lectura: solo el Residente de Obra registra consumos de material (RF-08).</div>'}
         <div class="card">
             <h3>Consumos Registrados</h3>
             <div class="table-wrap"><table>
@@ -706,6 +747,7 @@ async function renderConsumos() {
             </table></div>
         </div>`;
 
+    if (!esResidente) return;
     document.getElementById('formConsumo').onsubmit = async (e) => {
         e.preventDefault();
         try {
@@ -730,7 +772,7 @@ async function renderConsumos() {
 
 async function renderPersonal() {
     const empleados = await api('/api/empleados');
-    const esAdmin = sesion.rol === 'ADMIN';
+    const esAdmin = sesion.rol === 'ADMIN' || sesion.rol === 'RESIDENTE';
     moduleContainer.innerHTML = `
         ${esAdmin ? `
         <div class="card">
@@ -830,12 +872,14 @@ async function renderProduccion() {
     const [empleados, obras, lista] = await Promise.all([
         api('/api/empleados'), api('/api/obras'), api('/api/produccion')
     ]);
+    const esResidente = sesion.rol === 'RESIDENTE';
     const partidasAll = [];
     for (const o of obras) {
         const ps = await api(`/api/partidas?idObra=${o.idObra}`);
         ps.forEach(p => partidasAll.push({ ...p, obraNombre: o.nombre }));
     }
     moduleContainer.innerHTML = `
+        ${esResidente ? `
         <div class="card">
             <h3>Registrar Producción por Trabajador y Partida (RF-12)</h3>
             <form id="formProd" class="form-grid">
@@ -845,7 +889,7 @@ async function renderProduccion() {
                 <div class="form-group"><label>Cantidad Producida *</label><input id="pdCant" type="number" step="0.01" min="0.01" required></div>
                 <div class="form-group"><button type="submit" class="btn btn-primary">Registrar Producción</button></div>
             </form>
-        </div>
+        </div>` : '<div class="alert alert-info">Vista de solo lectura: solo el Residente de Obra registra producción diaria (RF-12).</div>'}
         <div class="card">
             <h3>Historial de Producción</h3>
             <div class="table-wrap"><table>
@@ -854,6 +898,7 @@ async function renderProduccion() {
             </table></div>
         </div>`;
 
+    if (!esResidente) return;
     document.getElementById('formProd').onsubmit = async (e) => {
         e.preventDefault();
         try {
@@ -1174,9 +1219,11 @@ function aplicarSoloDigitos(el) {
 
 async function renderClientes() {
     const clientes = await api('/api/clientes');
+    const esAdmin = sesion.rol === 'ADMIN';
     let editId = null;
 
     moduleContainer.innerHTML = `
+        ${esAdmin ? `
         <div class="card">
             <h3 id="clTitulo">Registrar Cliente / Contratante</h3>
             <form id="formCliente" class="form-grid">
@@ -1200,14 +1247,30 @@ async function renderClientes() {
                     <button type="button" id="btnClLimpiar" class="btn btn-secondary">Limpiar</button>
                 </div>
             </form>
-        </div>
+        </div>` : '<div class="alert alert-info">Vista de consulta (solo el Administrador crea, edita o elimina clientes).</div>'}
         <div class="card">
             <h3>Clientes Activos</h3>
             <div class="table-wrap"><table>
-                <thead><tr><th>ID</th><th>Tipo</th><th>Documento</th><th>Nombre / Razón Social</th><th>Teléfono</th><th>Correo</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>ID</th><th>Tipo</th><th>Documento</th><th>Nombre / Razón Social</th><th>Teléfono</th><th>Correo</th>${esAdmin ? '<th>Acciones</th>' : ''}</tr></thead>
                 <tbody id="tbClientes"></tbody>
             </table></div>
         </div>`;
+
+    document.getElementById('tbClientes').innerHTML = clientes.map(c => `
+        <tr>
+            <td>${c.idCliente}</td>
+            <td><span class="badge badge-info">${esc(c.tipoDocumento)}</span></td>
+            <td>${esc(c.numeroDocumento)}</td>
+            <td>${esc(c.nombreRazonSocial)}</td>
+            <td>${esc(c.telefono)}</td>
+            <td>${esc(c.correo || '-')}</td>
+            ${esAdmin ? `<td>
+                <button class="btn btn-secondary btn-sm" data-editc="${c.idCliente}">Editar</button>
+                <button class="btn btn-danger btn-sm" data-delc="${c.idCliente}">Eliminar</button>
+            </td>` : ''}
+        </tr>`).join('');
+
+    if (!esAdmin) return;
 
     const clDoc = document.getElementById('clDoc');
     const clTel = document.getElementById('clTel');
@@ -1228,20 +1291,6 @@ async function renderClientes() {
         }
     }
     clTipo.onchange = () => ajustarDoc(true);
-
-    document.getElementById('tbClientes').innerHTML = clientes.map(c => `
-        <tr>
-            <td>${c.idCliente}</td>
-            <td><span class="badge badge-info">${esc(c.tipoDocumento)}</span></td>
-            <td>${esc(c.numeroDocumento)}</td>
-            <td>${esc(c.nombreRazonSocial)}</td>
-            <td>${esc(c.telefono)}</td>
-            <td>${esc(c.correo || '-')}</td>
-            <td>
-                <button class="btn btn-secondary btn-sm" data-editc="${c.idCliente}">Editar</button>
-                <button class="btn btn-danger btn-sm" data-delc="${c.idCliente}">Eliminar</button>
-            </td>
-        </tr>`).join('');
 
     document.getElementById('btnClLimpiar').onclick = () => {
         editId = null;
@@ -1300,7 +1349,7 @@ async function renderValorizaciones() {
     const [obras, valorizaciones, comprobantes] = await Promise.all([
         api('/api/obras'), api('/api/valorizaciones'), api('/api/valorizaciones/comprobantes')
     ]);
-    const esAdmin = sesion.rol === 'ADMIN';
+    const esAdmin = sesion.rol === 'ADMIN' || sesion.rol === 'CONTADOR';
     const pendientes = valorizaciones.filter(v => v.estado === 'PENDIENTE');
 
     moduleContainer.innerHTML = `

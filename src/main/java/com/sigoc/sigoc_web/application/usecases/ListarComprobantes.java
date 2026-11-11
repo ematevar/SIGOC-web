@@ -19,7 +19,7 @@ public class ListarComprobantes {
     }
 
     public List<Comprobante> ejecutar(UsuarioSesion actor) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.CONTADOR);
         return comprobantePort.findAllActivos();
     }
 }

@@ -68,6 +68,11 @@ class ObrasPartidasTest {
         Obra cerrada = obraPort.findById(obra.getIdObra()).orElseThrow();
         assertEquals("Finalizada", cerrada.getEstado());
         assertFalse(cerrada.isOperable());
+
+        // C09: obra finalizada no puede editarse ni reabrirse
+        GuardarObra guardar = new GuardarObra(obraPort);
+        assertThrows(ReglaNegocioException.class, () -> guardar.ejecutar(admin, obra.getIdObra(),
+                "Obra", "Cli", null, new BigDecimal("1000"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 6, 1), "En Ejecución"));
     }
 
     @Test
@@ -119,6 +124,11 @@ class ObrasPartidasTest {
 
         EliminarPartida eliminar = new EliminarPartida(partidaPort);
         assertThrows(ReglaNegocioException.class, () -> eliminar.ejecutar(residente, p.getIdPartida()));
+
+        // C15: partida con movimientos no puede cambiar unidad de medida
+        GuardarPartida guardar = new GuardarPartida(partidaPort, obraPort);
+        assertThrows(ReglaNegocioException.class, () -> guardar.ejecutar(admin, p.getIdPartida(),
+                obra.getIdObra(), "Zapatas", "m2", new BigDecimal("10"), new BigDecimal("20")));
     }
 
     // ---------- RF-16b PartidaMaterial ----------

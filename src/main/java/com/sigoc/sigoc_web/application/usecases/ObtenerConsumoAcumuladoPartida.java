@@ -18,7 +18,7 @@ public class ObtenerConsumoAcumuladoPartida {
     }
 
     public BigDecimal ejecutar(UsuarioSesion actor, Integer idPartida, Integer idMaterial) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.ALMACENERO);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.ALMACENERO, RolSistema.CONTADOR);
         return consumoPort.sumaCantidadPorPartidaYMaterial(idPartida, idMaterial);
     }
 }

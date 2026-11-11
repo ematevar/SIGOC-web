@@ -46,9 +46,11 @@ public class RegistrarCompra {
         if (numeroComprobante == null || numeroComprobante.isBlank()) {
             throw new ReglaNegocioException("Ingresa el número de comprobante.");
         }
+        BigDecimal cantBd = cantidad == null ? null : cantidad.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal precioBd = precioUnitario == null ? null : precioUnitario.setScale(2, RoundingMode.HALF_UP);
         if (fechaCompra == null || fechaCompra.isAfter(LocalDate.now(clock))
-                || cantidad == null || cantidad.compareTo(BigDecimal.ZERO) <= 0
-                || precioUnitario == null || precioUnitario.compareTo(BigDecimal.ZERO) <= 0) {
+                || cantBd == null || cantBd.compareTo(BigDecimal.ZERO) <= 0
+                || precioBd == null || precioBd.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ReglaNegocioException("Fecha, cantidad o precio no válidos.");
         }
 
@@ -60,7 +62,7 @@ public class RegistrarCompra {
         if (obra == null || !obra.isOperable()) {
             throw new ReglaNegocioException("La obra seleccionada no existe o no se encuentra activa (RF-07).");
         }
-        Material material = materialPort.findById(idMaterial).filter(Material::isActivo).orElse(null);
+        Material material = materialPort.findByIdParaActualizar(idMaterial).filter(Material::isActivo).orElse(null);
         if (material == null) {
             throw new ReglaNegocioException("El material seleccionado no existe o está inactivo.");
         }
@@ -71,8 +73,6 @@ public class RegistrarCompra {
                     + comprobanteLimpio + " para este proveedor.");
         }
 
-        BigDecimal cantBd = cantidad.setScale(2, RoundingMode.HALF_UP);
-        BigDecimal precioBd = precioUnitario.setScale(2, RoundingMode.HALF_UP);
         BigDecimal totalBd = cantBd.multiply(precioBd).setScale(2, RoundingMode.HALF_UP);
         if (totalBd.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ReglaNegocioException("El total de la compra debe ser mayor que cero.");

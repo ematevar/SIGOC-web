@@ -43,7 +43,8 @@ public class RegistrarConsumo {
         if (fechaConsumo == null || fechaConsumo.isAfter(LocalDate.now(clock))) {
             throw new ReglaNegocioException("La fecha de consumo no es válida ni puede ser futura.");
         }
-        if (cantidad == null || cantidad.compareTo(BigDecimal.ZERO) <= 0) {
+        BigDecimal cantBd = cantidad == null ? null : cantidad.setScale(2, RoundingMode.HALF_UP);
+        if (cantBd == null || cantBd.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ReglaNegocioException("La cantidad debe ser mayor que cero.");
         }
 
@@ -55,12 +56,11 @@ public class RegistrarConsumo {
         if (obra == null || !obra.isOperable()) {
             throw new ReglaNegocioException("Solo se puede registrar consumo de materiales en partidas de una obra activa (RF-08).");
         }
-        Material material = materialPort.findById(idMaterial).filter(Material::isActivo).orElse(null);
+        Material material = materialPort.findByIdParaActualizar(idMaterial).filter(Material::isActivo).orElse(null);
         if (material == null) {
             throw new ReglaNegocioException("El material seleccionado no existe o está inactivo.");
         }
 
-        BigDecimal cantBd = cantidad.setScale(2, RoundingMode.HALF_UP);
         BigDecimal stockDisponible = material.getStockActual();
         if (stockDisponible.compareTo(cantBd) < 0) {
             throw new ReglaNegocioException("Stock insuficiente. Disponible: " + stockDisponible);

@@ -19,7 +19,7 @@ public class ListarValorizaciones {
     }
 
     public List<Valorizacion> ejecutar(UsuarioSesion actor, Integer idObra) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE);
+        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.CONTADOR);
         if (idObra != null && idObra > 0) {
             return valorizacionPort.findActivasByObra(idObra);
         }

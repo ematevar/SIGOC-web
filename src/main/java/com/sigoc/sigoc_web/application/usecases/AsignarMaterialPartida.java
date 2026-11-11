@@ -32,7 +32,10 @@ public class AsignarMaterialPartida {
         if (idPartida == null || idPartida <= 0 || idMaterial == null || idMaterial <= 0) {
             throw new ReglaNegocioException("Selecciona una partida y un material válidos.");
         }
-        if (cantidadPresupuestada == null || cantidadPresupuestada.compareTo(BigDecimal.ZERO) <= 0) {
+        BigDecimal cantBd = cantidadPresupuestada == null
+                ? null
+                : cantidadPresupuestada.setScale(2, RoundingMode.HALF_UP);
+        if (cantBd == null || cantBd.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ReglaNegocioException("La cantidad presupuestada debe ser mayor que cero.");
         }
         Partida partida = partidaPort.findById(idPartida)

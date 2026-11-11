@@ -12,6 +12,10 @@ public interface MaterialPort {
 
     Optional<Material> findById(Integer idMaterial);
 
+    default Optional<Material> findByIdParaActualizar(Integer idMaterial) {
+        return findById(idMaterial);
+    }
+
     Material guardar(Material material);
 
     /** Actualiza el stock (y opcionalmente el costo de referencia) tras una compra o consumo. */

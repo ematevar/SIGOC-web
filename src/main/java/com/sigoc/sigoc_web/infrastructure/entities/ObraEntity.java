@@ -8,12 +8,16 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "obra")
-public class ObraEntity {
+@EntityListeners(AuditoriaEntityListener.class)
+public class ObraEntity implements Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_obra")
     private Integer idObra;
+
+    @Column(name = "id_cliente")
+    private Integer idCliente;
 
     @Column(name = "nombre", nullable = false, length = 150)
     private String nombre;
@@ -41,6 +45,12 @@ public class ObraEntity {
 
     @Column(name = "fecha_borrado")
     private LocalDateTime fechaBorrado;
+
+    @Column(name = "id_usuario_registro")
+    private Integer idUsuarioRegistro;
+
+    @Column(name = "fecha_registro")
+    private LocalDateTime fechaRegistro;
 
     public ObraEntity() {
     }
@@ -123,5 +133,33 @@ public class ObraEntity {
 
     public void setFechaBorrado(LocalDateTime fechaBorrado) {
         this.fechaBorrado = fechaBorrado;
+    }
+
+    public Integer getIdCliente() {
+        return idCliente;
+    }
+
+    public void setIdCliente(Integer idCliente) {
+        this.idCliente = idCliente;
+    }
+
+    @Override
+    public Integer getIdUsuarioRegistro() {
+        return idUsuarioRegistro;
+    }
+
+    @Override
+    public void setIdUsuarioRegistro(Integer idUsuarioRegistro) {
+        this.idUsuarioRegistro = idUsuarioRegistro;
+    }
+
+    @Override
+    public LocalDateTime getFechaRegistro() {
+        return fechaRegistro;
+    }
+
+    @Override
+    public void setFechaRegistro(LocalDateTime fechaRegistro) {
+        this.fechaRegistro = fechaRegistro;
     }
 }

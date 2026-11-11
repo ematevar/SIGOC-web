@@ -8,7 +8,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "consumo_material")
-public class ConsumoMaterialEntity {
+@EntityListeners(AuditoriaEntityListener.class)
+public class ConsumoMaterialEntity implements Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,6 +37,9 @@ public class ConsumoMaterialEntity {
     @Column(name = "fecha_borrado")
     private LocalDateTime fechaBorrado;
 
+    @Column(name = "fecha_registro")
+    private LocalDateTime fechaRegistro;
+
     public ConsumoMaterialEntity() {
     }
 
@@ -55,4 +59,8 @@ public class ConsumoMaterialEntity {
     public void setActivo(boolean activo) { this.activo = activo; }
     public LocalDateTime getFechaBorrado() { return fechaBorrado; }
     public void setFechaBorrado(LocalDateTime fechaBorrado) { this.fechaBorrado = fechaBorrado; }
+    @Override
+    public LocalDateTime getFechaRegistro() { return fechaRegistro; }
+    @Override
+    public void setFechaRegistro(LocalDateTime fechaRegistro) { this.fechaRegistro = fechaRegistro; }
 }

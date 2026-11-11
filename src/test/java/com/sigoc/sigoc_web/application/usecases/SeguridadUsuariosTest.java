@@ -105,13 +105,16 @@ class SeguridadUsuariosTest {
         CrearUsuario uc = new CrearUsuario(usuarios, roles, hasher);
         assertThrows(ReglaNegocioException.class, () -> uc.ejecutar(admin, "Juan", "j", "Clave12345", 2));
         assertThrows(ReglaNegocioException.class, () -> uc.ejecutar(admin, "Juan", "juan", "corta", 2));
-        assertThrows(ReglaNegocioException.class, () -> uc.ejecutar(admin, "Juan", "juan", "Clave12345", 4));
+        assertThrows(ReglaNegocioException.class, () -> uc.ejecutar(admin, "Juan", "juan", "Clave12345", 99));
         assertThrows(ReglaNegocioException.class, () -> uc.ejecutar(admin, "Juan", "ADMIN", "Clave12345", 2));
 
         var creado = uc.ejecutar(admin, " Juan Pérez ", "juan", "Clave12345", 2);
         assertEquals("Juan Pérez", creado.getNombreCompleto());
         assertEquals("H:Clave12345", creado.getPasswordHash());
         assertEquals("RESIDENTE", creado.getRol());
+
+        var contador = uc.ejecutar(admin, "Ana Torres", "contador1", "Clave12345", 4);
+        assertEquals("CONTADOR", contador.getRol());
     }
 
     @Test
@@ -133,10 +136,10 @@ class SeguridadUsuariosTest {
     }
 
     @Test
-    void listarRolesExcluyeContador() {
+    void listarRolesIncluyeLosCuatroPerfilesDelSistema() {
         var lista = new ListarRoles(roles).ejecutar();
-        assertEquals(3, lista.size());
-        assertTrue(lista.stream().noneMatch(r -> r.getNombreRol().equals("CONTADOR")));
+        assertEquals(4, lista.size());
+        assertTrue(lista.stream().anyMatch(r -> r.getNombreRol().equals("CONTADOR")));
     }
 
     static final class MutableClock extends Clock {
