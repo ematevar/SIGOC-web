@@ -71,6 +71,14 @@ class FinanzasPlanillaTest {
         asistPort.datos.add(asistencia(4, 11, 1, LocalDate.of(2026, 4, 6), "PRESENTE"));
 
         CerrarPlanilla uc = new CerrarPlanilla(cierrePort, obraPort, asistPort, empPort, egresoPort, FIJO);
+        PrevisualizarPlanilla preUc = new PrevisualizarPlanilla(cierrePort, obraPort, asistPort, empPort, FIJO);
+
+        PrevisualizarPlanilla.ResumenPlanilla preview = preUc.ejecutar(
+                CONTADOR, 1, LocalDate.of(2026, 4, 6), LocalDate.of(2026, 4, 12));
+        assertEquals(new BigDecimal("320.00"), preview.totalPlanilla());
+        assertEquals(2, preview.trabajadores().size());
+        assertTrue(cierrePort.datos.isEmpty());
+        assertTrue(egresoPort.datos.isEmpty());
 
         CierrePlanilla cierre = uc.ejecutar(ADMIN, 1, LocalDate.of(2026, 4, 6), LocalDate.of(2026, 4, 12));
         assertEquals(new BigDecimal("320.00"), cierre.getMontoTotal());

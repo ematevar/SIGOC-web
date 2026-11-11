@@ -80,6 +80,35 @@ class ComprasConsumosTest {
                         hoy, new BigDecimal("5"), new BigDecimal("30")));
     }
 
+    @Test
+    void compraMultiItemValidaDuplicadosYActualizaStockYTotales() {
+        LocalDate hoy = LocalDate.of(2026, 10, 15);
+        materialPort.datos.put(2, new Material(2, "Fierro 1/2", "var",
+                new BigDecimal("5.00"), new BigDecimal("2.00"), new BigDecimal("35.00"), true, null));
+
+        // Material duplicado en el mismo comprobante
+        assertThrows(ReglaNegocioException.class,
+                () -> registrarCompra.ejecutar(almacenero, 1, 1, "Boleta", "B001-1", hoy, List.of(
+                        new RegistrarCompra.ItemCompra(1, new BigDecimal("2"), new BigDecimal("25")),
+                        new RegistrarCompra.ItemCompra(1, new BigDecimal("3"), new BigDecimal("26"))
+                )));
+
+        CompraMaterial multi = registrarCompra.ejecutar(almacenero, 1, 1, "Factura", "F001-99", hoy, List.of(
+                new RegistrarCompra.ItemCompra(1, new BigDecimal("4"), new BigDecimal("30")),
+                new RegistrarCompra.ItemCompra(2, new BigDecimal("10"), new BigDecimal("40"))
+        ));
+
+        // Subtotal total = 4*30 + 10*40 = 520.00
+        assertEquals(new BigDecimal("520.00"), multi.getTotal());
+        assertEquals(new BigDecimal("14.00"), materialPort.datos.get(1).getStockActual());
+        assertEquals(new BigDecimal("30.00"), materialPort.datos.get(1).getCostoUnitarioRef());
+        assertEquals(new BigDecimal("15.00"), materialPort.datos.get(2).getStockActual());
+        assertEquals(new BigDecimal("40.00"), materialPort.datos.get(2).getCostoUnitarioRef());
+        assertEquals(1, egresoPort.datos.size());
+        assertEquals(new BigDecimal("520.00"), egresoPort.datos.get(0).getMonto());
+        assertEquals(2, compraPort.ultimosDetalles);
+    }
+
     // ---------- RF-08 Consumos ----------
 
     @Test
@@ -118,6 +147,7 @@ class ComprasConsumosTest {
     private static final class ComprasFake implements CompraPort {
         final List<CompraMaterial> compras = new ArrayList<>();
         int seq = 1;
+        int ultimosDetalles = 0;
 
         @Override public List<CompraMaterial> findAllActivas() { return compras; }
         @Override public boolean existsByProveedorYComprobante(Integer idProveedor, String numeroComprobante) {
@@ -125,7 +155,11 @@ class ComprasConsumosTest {
                     && c.getNumeroComprobante().equalsIgnoreCase(numeroComprobante));
         }
         @Override public CompraMaterial guardarCompraConDetalle(CompraMaterial compra, DetalleCompra detalle) {
+            return guardarCompraConDetalles(compra, List.of(detalle));
+        }
+        @Override public CompraMaterial guardarCompraConDetalles(CompraMaterial compra, List<DetalleCompra> detalles) {
             compra.setIdCompra(seq++);
+            ultimosDetalles = detalles.size();
             compras.add(compra);
             return compra;
         }

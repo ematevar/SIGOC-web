@@ -236,6 +236,11 @@ public class CasosUsoConfig {
     }
 
     @Bean
+    public RegistrarAsistenciaLote registrarAsistenciaLote(RegistrarAsistencia registrarAsistencia) {
+        return new RegistrarAsistenciaLote(registrarAsistencia);
+    }
+
+    @Bean
     public ListarProduccion listarProduccion(ProduccionPort produccionPort) {
         return new ListarProduccion(produccionPort);
     }
@@ -279,6 +284,13 @@ public class CasosUsoConfig {
                                          AsistenciaPort asistenciaPort, EmpleadoPort empleadoPort,
                                          EgresoPort egresoPort, Clock clock) {
         return new CerrarPlanilla(cierrePort, obraPort, asistenciaPort, empleadoPort, egresoPort, clock);
+    }
+
+    @Bean
+    public PrevisualizarPlanilla previsualizarPlanilla(CierrePlanillaPort cierrePort, ObraPort obraPort,
+                                                       AsistenciaPort asistenciaPort, EmpleadoPort empleadoPort,
+                                                       Clock clock) {
+        return new PrevisualizarPlanilla(cierrePort, obraPort, asistenciaPort, empleadoPort, clock);
     }
 
     // --- Reportes (Parte 8) ---

@@ -670,21 +670,37 @@ async function renderCompras() {
     const [compras, obras, materiales, proveedores] = await Promise.all([
         api('/api/compras'), api('/api/obras'), api('/api/materiales'), api('/api/proveedores')
     ]);
+    const puedeEscribir = sesion.rol === 'ADMIN' || sesion.rol === 'ALMACENERO';
+    const matOpciones = materiales.map(m => `<option value="${m.idMaterial}">${esc(m.nombre)} (${esc(m.unidadMedida)})</option>`).join('');
+
     moduleContainer.innerHTML = `
+        ${puedeEscribir ? `
         <div class="card">
             <h3>Registrar Compra de Material (RF-07)</h3>
-            <form id="formCompra" class="form-grid">
-                <div class="form-group"><label>Proveedor</label><select id="coProv">${proveedores.map(p => `<option value="${p.idProveedor}">${esc(p.razonSocial)}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Obra Destino</label><select id="coObra">${obras.filter(o => o.operable).map(o => `<option value="${o.idObra}">${esc(o.nombre)}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Material</label><select id="coMat">${materiales.map(m => `<option value="${m.idMaterial}">${esc(m.nombre)} (${esc(m.unidadMedida)})</option>`).join('')}</select></div>
-                <div class="form-group"><label>Comprobante</label><select id="coTipo"><option>Factura</option><option>Boleta</option></select></div>
-                <div class="form-group"><label>Nro. Comprobante *</label><input id="coNum" required placeholder="F001-000123"></div>
-                <div class="form-group"><label>Fecha Compra *</label><input id="coFecha" type="date" value="${hoyIso()}" required></div>
-                <div class="form-group"><label>Cantidad *</label><input id="coCant" type="number" step="0.01" min="0.01" required></div>
-                <div class="form-group"><label>Precio Unit. (S/) *</label><input id="coPrecio" type="number" step="0.01" min="0.01" required></div>
-                <div class="form-group"><button type="submit" class="btn btn-primary">Registrar Compra</button></div>
+            <form id="formCompra">
+                <div class="form-grid">
+                    <div class="form-group"><label>Proveedor</label><select id="coProv">${proveedores.map(p => `<option value="${p.idProveedor}">${esc(p.razonSocial)}</option>`).join('')}</select></div>
+                    <div class="form-group"><label>Obra Destino</label><select id="coObra">${obras.filter(o => o.operable).map(o => `<option value="${o.idObra}">${esc(o.nombre)}</option>`).join('')}</select></div>
+                    <div class="form-group"><label>Comprobante</label><select id="coTipo"><option>Factura</option><option>Boleta</option></select></div>
+                    <div class="form-group"><label>Nro. Comprobante *</label><input id="coNum" required placeholder="F001-000123"></div>
+                    <div class="form-group"><label>Fecha Compra *</label><input id="coFecha" type="date" value="${hoyIso()}" required></div>
+                </div>
+                <div style="margin-top:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <strong>Detalle de Materiales</strong>
+                        <button type="button" id="btnAddItemCompra" class="btn btn-secondary btn-sm">+ Agregar Material</button>
+                    </div>
+                    <div class="table-wrap"><table>
+                        <thead><tr><th>Material</th><th>Cantidad *</th><th>Precio Unit. (S/) *</th><th>Subtotal (S/)</th><th></th></tr></thead>
+                        <tbody id="tbCompraItems"></tbody>
+                    </table></div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+                        <strong id="coTotalTxt">Total Compra: S/ 0.00</strong>
+                        <button type="submit" class="btn btn-primary">Registrar Compra</button>
+                    </div>
+                </div>
             </form>
-        </div>
+        </div>` : '<div class="alert alert-info">Vista de consulta (solo Almacenero o Administrador registran compras).</div>'}
         <div class="card">
             <h3>Historial de Compras</h3>
             <div class="table-wrap"><table>
@@ -693,20 +709,59 @@ async function renderCompras() {
             </table></div>
         </div>`;
 
+    if (!puedeEscribir) return;
+
+    const tbItems = document.getElementById('tbCompraItems');
+    function recalcularTotalCompra() {
+        let total = 0;
+        tbItems.querySelectorAll('tr').forEach(tr => {
+            const cant = Number(tr.querySelector('.ci-cant').value || 0);
+            const precio = Number(tr.querySelector('.ci-precio').value || 0);
+            const sub = cant * precio;
+            tr.querySelector('.ci-sub').textContent = `S/ ${sub.toFixed(2)}`;
+            total += sub;
+        });
+        document.getElementById('coTotalTxt').textContent = `Total Compra: S/ ${total.toFixed(2)}`;
+    }
+    function agregarFilaCompra() {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><select class="ci-mat">${matOpciones}</select></td>
+            <td><input class="ci-cant" type="number" step="0.01" min="0.01" value="1" required></td>
+            <td><input class="ci-precio" type="number" step="0.01" min="0.01" value="1" required></td>
+            <td class="ci-sub">S/ 1.00</td>
+            <td><button type="button" class="btn btn-danger btn-sm ci-del">Quitar</button></td>`;
+        tr.querySelector('.ci-cant').oninput = recalcularTotalCompra;
+        tr.querySelector('.ci-precio').oninput = recalcularTotalCompra;
+        tr.querySelector('.ci-del').onclick = () => {
+            if (tbItems.querySelectorAll('tr').length > 1) {
+                tr.remove();
+                recalcularTotalCompra();
+            }
+        };
+        tbItems.appendChild(tr);
+        recalcularTotalCompra();
+    }
+    agregarFilaCompra();
+    document.getElementById('btnAddItemCompra').onclick = agregarFilaCompra;
+
     document.getElementById('formCompra').onsubmit = async (e) => {
         e.preventDefault();
         try {
+            const items = Array.from(tbItems.querySelectorAll('tr')).map(tr => ({
+                idMaterial: Number(tr.querySelector('.ci-mat').value),
+                cantidad: Number(tr.querySelector('.ci-cant').value),
+                precioUnitario: Number(tr.querySelector('.ci-precio').value)
+            }));
             await api('/api/compras', {
                 method: 'POST',
                 body: {
                     idProveedor: Number(document.getElementById('coProv').value),
                     idObra: Number(document.getElementById('coObra').value),
-                    idMaterial: Number(document.getElementById('coMat').value),
                     tipoComprobante: document.getElementById('coTipo').value,
                     numeroComprobante: document.getElementById('coNum').value.trim(),
                     fechaCompra: document.getElementById('coFecha').value,
-                    cantidad: Number(document.getElementById('coCant').value),
-                    precioUnitario: Number(document.getElementById('coPrecio').value)
+                    items
                 }
             });
             mostrarAlerta('Compra registrada. Stock y egreso de material actualizados.');
@@ -827,19 +882,44 @@ async function renderAsistencia() {
     const [empleados, obras, asistencias] = await Promise.all([
         api('/api/empleados'), api('/api/obras'), api('/api/asistencias')
     ]);
+    const esResidente = sesion.rol === 'RESIDENTE';
+    const obrasActivas = obras.filter(o => o.operable);
     moduleContainer.innerHTML = `
+        ${esResidente ? `
         <div class="card">
-            <h3>Control de Asistencia Diaria (RF-11)</h3>
-            <form id="formAsis" class="form-grid">
-                <div class="form-group"><label>Trabajador</label><select id="asEmp">${empleados.map(e => `<option value="${e.idEmpleado}">${esc(e.nombresApellidos)} (${esc(e.dni)})</option>`).join('')}</select></div>
-                <div class="form-group"><label>Obra</label><select id="asObra">${obras.filter(o => o.operable).map(o => `<option value="${o.idObra}">${esc(o.nombre)}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Fecha</label><input id="asFecha" type="date" value="${hoyIso()}" required></div>
-                <div class="form-group"><label>Estado</label><select id="asEstado"><option>PRESENTE</option><option>TARDANZA</option><option>FALTA</option><option>PERMISO</option></select></div>
-                <div class="form-group"><label>Entrada</label><input id="asEnt" type="time" value="08:00"></div>
-                <div class="form-group"><label>Salida</label><input id="asSal" type="time" value="17:00"></div>
-                <div class="form-group"><button type="submit" class="btn btn-primary">Registrar Asistencia</button></div>
+            <h3>Control Rápido de Asistencia Diaria (RF-11)</h3>
+            <form id="formAsisLote">
+                <div class="form-grid" style="margin-bottom:12px;">
+                    <div class="form-group"><label>Obra</label><select id="asObra">${obrasActivas.map(o => `<option value="${o.idObra}">${esc(o.nombre)}</option>`).join('')}</select></div>
+                    <div class="form-group"><label>Fecha</label><input id="asFecha" type="date" value="${hoyIso()}" required></div>
+                </div>
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Incluir</th><th>Trabajador</th><th>DNI</th><th>Cargo</th><th>Estado</th><th>Entrada</th><th>Salida</th></tr></thead>
+                    <tbody id="tbAsisMatrix">
+                        ${empleados.map(e => `
+                            <tr data-emp="${e.idEmpleado}">
+                                <td><input type="checkbox" class="as-chk" checked></td>
+                                <td>${esc(e.nombresApellidos)}</td>
+                                <td>${esc(e.dni)}</td>
+                                <td>${esc(e.cargo)}</td>
+                                <td>
+                                    <select class="as-est">
+                                        <option value="PRESENTE" selected>PRESENTE</option>
+                                        <option value="TARDANZA">TARDANZA</option>
+                                        <option value="FALTA">FALTA</option>
+                                        <option value="PERMISO">PERMISO</option>
+                                    </select>
+                                </td>
+                                <td><input type="time" class="as-ent" value="08:00"></td>
+                                <td><input type="time" class="as-sal" value="17:00"></td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table></div>
+                <div style="margin-top:12px;">
+                    <button type="submit" class="btn btn-primary">Registrar Asistencia del Día</button>
+                </div>
             </form>
-        </div>
+        </div>` : '<div class="alert alert-info">Vista de solo lectura: solo el Residente de Obra registra asistencia diaria (RF-11).</div>'}
         <div class="card">
             <h3>Asistencias Registradas</h3>
             <div class="table-wrap"><table>
@@ -848,21 +928,51 @@ async function renderAsistencia() {
             </table></div>
         </div>`;
 
-    document.getElementById('formAsis').onsubmit = async (e) => {
+    if (!esResidente) return;
+
+    document.querySelectorAll('#tbAsisMatrix tr').forEach(tr => {
+        const sel = tr.querySelector('.as-est');
+        const ent = tr.querySelector('.as-ent');
+        const sal = tr.querySelector('.as-sal');
+        const actualizarHoras = () => {
+            const sinHoras = sel.value === 'FALTA' || sel.value === 'PERMISO';
+            ent.disabled = sinHoras;
+            sal.disabled = sinHoras;
+            if (sinHoras) {
+                ent.value = '';
+                sal.value = '';
+            } else if (!ent.value) {
+                ent.value = '08:00';
+                sal.value = '17:00';
+            }
+        };
+        sel.onchange = actualizarHoras;
+    });
+
+    document.getElementById('formAsisLote').onsubmit = async (e) => {
         e.preventDefault();
         try {
-            await api('/api/asistencias', {
+            const filas = Array.from(document.querySelectorAll('#tbAsisMatrix tr'))
+                .filter(tr => tr.querySelector('.as-chk').checked)
+                .map(tr => {
+                    const estado = tr.querySelector('.as-est').value;
+                    const sinHoras = estado === 'FALTA' || estado === 'PERMISO';
+                    return {
+                        idEmpleado: Number(tr.dataset.emp),
+                        estado,
+                        horaEntrada: sinHoras ? null : (tr.querySelector('.as-ent').value || null),
+                        horaSalida: sinHoras ? null : (tr.querySelector('.as-sal').value || null)
+                    };
+                });
+            const res = await api('/api/asistencias/lote', {
                 method: 'POST',
                 body: {
-                    idEmpleado: Number(document.getElementById('asEmp').value),
                     idObra: Number(document.getElementById('asObra').value),
                     fecha: document.getElementById('asFecha').value,
-                    estado: document.getElementById('asEstado').value,
-                    horaEntrada: document.getElementById('asEnt').value || null,
-                    horaSalida: document.getElementById('asSal').value || null
+                    filas
                 }
             });
-            mostrarAlerta('Asistencia registrada.');
+            mostrarAlerta(`Asistencia registrada (${res.length} trabajadores).`);
             await renderAsistencia();
         } catch (err) { mostrarAlerta(err.message, 'error'); }
     };
@@ -957,8 +1067,12 @@ async function renderFinanzas() {
                     <div class="form-group"><label>Obra</label><select id="clObra">${obrasOpt}</select></div>
                     <div class="form-group"><label>Desde *</label><input id="clDesde" type="date" required></div>
                     <div class="form-group"><label>Hasta *</label><input id="clHasta" type="date" value="${hoyIso()}" required></div>
-                    <div class="form-group"><button type="submit" class="btn btn-warning">Cerrar Planilla</button></div>
+                    <div class="form-group" style="display:flex;gap:8px;align-items:flex-end;">
+                        <button type="button" id="btnPreviewPlanilla" class="btn btn-secondary">Previsualizar</button>
+                        <button type="submit" class="btn btn-warning">Cerrar Planilla</button>
+                    </div>
                 </form>
+                <div id="planillaPreviewBox" class="hidden" style="margin-top:14px;"></div>
             </div>
             <div class="card">
                 <h3>Cierres de Planilla Registrados</h3>
@@ -1008,6 +1122,27 @@ async function renderFinanzas() {
             });
             mostrarAlerta('Ingreso registrado.');
             await renderFinanzas();
+        } catch (err) { mostrarAlerta(err.message, 'error'); }
+    };
+
+    document.getElementById('btnPreviewPlanilla').onclick = async () => {
+        const idObra = document.getElementById('clObra').value;
+        const desde = document.getElementById('clDesde').value;
+        const hasta = document.getElementById('clHasta').value;
+        if (!idObra || !desde || !hasta) {
+            mostrarAlerta('Selecciona obra, fecha inicio y fecha fin para previsualizar.', 'warning');
+            return;
+        }
+        try {
+            const prev = await api(`/api/finanzas/planillas/preview?idObra=${idObra}&desde=${desde}&hasta=${hasta}`);
+            const box = document.getElementById('planillaPreviewBox');
+            box.classList.remove('hidden');
+            box.innerHTML = `
+                <div class="alert alert-info">Previsualización de planilla — Total estimado: <strong>S/ ${Number(prev.totalPlanilla).toFixed(2)}</strong></div>
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Trabajador</th><th>DNI</th><th>Cargo</th><th>Días Válidos</th><th>Jornal (S/)</th><th>Subtotal (S/)</th></tr></thead>
+                    <tbody>${prev.trabajadores.map(t => `<tr><td>${esc(t.nombresApellidos)}</td><td>${esc(t.dni)}</td><td>${esc(t.cargo)}</td><td>${t.diasValidos}</td><td>S/ ${Number(t.jornalDiario).toFixed(2)}</td><td><strong>S/ ${Number(t.subtotal).toFixed(2)}</strong></td></tr>`).join('')}</tbody>
+                </table></div>`;
         } catch (err) { mostrarAlerta(err.message, 'error'); }
     };
 

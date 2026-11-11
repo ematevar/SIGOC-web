@@ -36,6 +36,20 @@ public class CompraController {
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
     public CompraResponse registrar(UsuarioSesion actor, @Valid @RequestBody RegistrarCompraRequest body) {
+        if (body.items() != null && !body.items().isEmpty()) {
+            List<RegistrarCompra.ItemCompra> items = body.items().stream()
+                    .map(i -> new RegistrarCompra.ItemCompra(i.idMaterial(), i.cantidad(), i.precioUnitario()))
+                    .toList();
+            return CompraResponse.de(registrarCompra.ejecutar(
+                    actor,
+                    body.idProveedor(),
+                    body.idObra(),
+                    body.tipoComprobante(),
+                    body.numeroComprobante(),
+                    body.fechaCompra(),
+                    items
+            ));
+        }
         return CompraResponse.de(registrarCompra.ejecutar(
                 actor,
                 body.idProveedor(),

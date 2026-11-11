@@ -39,6 +39,12 @@ public class CompraJpaAdapter implements CompraPort {
     @Override
     @Transactional
     public CompraMaterial guardarCompraConDetalle(CompraMaterial compra, DetalleCompra detalle) {
+        return guardarCompraConDetalles(compra, List.of(detalle));
+    }
+
+    @Override
+    @Transactional
+    public CompraMaterial guardarCompraConDetalles(CompraMaterial compra, List<DetalleCompra> detalles) {
         CompraMaterialEntity ce = new CompraMaterialEntity();
         ce.setIdProveedor(compra.getIdProveedor());
         ce.setTipoComprobante(compra.getTipoComprobante());
@@ -48,14 +54,17 @@ public class CompraJpaAdapter implements CompraPort {
         ce.setActivo(true);
         CompraMaterialEntity guardada = compraRepo.saveAndFlush(ce);
 
-        DetalleCompraEntity de = new DetalleCompraEntity();
-        de.setIdCompra(guardada.getIdCompra());
-        de.setIdMaterial(detalle.getIdMaterial());
-        de.setCantidad(detalle.getCantidad());
-        de.setPrecioUnitario(detalle.getPrecioUnitario());
-        de.setSubtotal(detalle.getSubtotal());
-        de.setActivo(true);
-        detalleRepo.save(de);
+        List<DetalleCompraEntity> entidades = detalles.stream().map(detalle -> {
+            DetalleCompraEntity de = new DetalleCompraEntity();
+            de.setIdCompra(guardada.getIdCompra());
+            de.setIdMaterial(detalle.getIdMaterial());
+            de.setCantidad(detalle.getCantidad());
+            de.setPrecioUnitario(detalle.getPrecioUnitario());
+            de.setSubtotal(detalle.getSubtotal());
+            de.setActivo(true);
+            return de;
+        }).toList();
+        detalleRepo.saveAll(entidades);
 
         return toModel(guardada);
     }

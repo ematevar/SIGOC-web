@@ -3,12 +3,15 @@ package com.sigoc.sigoc_web.infrastructure.controllers.dto;
 import com.sigoc.sigoc_web.domain.models.Asistencia;
 import com.sigoc.sigoc_web.domain.models.Empleado;
 import com.sigoc.sigoc_web.domain.models.ProduccionEmpleado;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 public final class PersonalDtos {
 
@@ -51,6 +54,21 @@ public final class PersonalDtos {
             LocalTime horaEntrada,
             LocalTime horaSalida,
             @NotBlank String estado
+    ) {
+    }
+
+    public record FilaAsistenciaRequest(
+            @NotNull Integer idEmpleado,
+            @NotBlank String estado,
+            LocalTime horaEntrada,
+            LocalTime horaSalida
+    ) {
+    }
+
+    public record RegistrarAsistenciaLoteRequest(
+            @NotNull Integer idObra,
+            @NotNull LocalDate fecha,
+            @NotEmpty @Valid List<FilaAsistenciaRequest> filas
     ) {
     }
 

@@ -8,10 +8,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
- * RF-13, RF-14, RF-15: ingresos, cierre inmutable de planillas y egresos (solo Administrador).
+ * RF-13, RF-14, RF-15: ingresos, previsualización y cierre inmutable de planillas y egresos (Administrador y Contador).
  */
 @RestController
 @RequestMapping("/api/finanzas")
@@ -23,16 +24,19 @@ public class FinanzasController {
     private final RegistrarEgreso registrarEgreso;
     private final ListarCierresPlanilla listarCierresPlanilla;
     private final CerrarPlanilla cerrarPlanilla;
+    private final PrevisualizarPlanilla previsualizarPlanilla;
 
     public FinanzasController(ListarIngresos listarIngresos, RegistrarIngreso registrarIngreso,
                               ListarEgresos listarEgresos, RegistrarEgreso registrarEgreso,
-                              ListarCierresPlanilla listarCierresPlanilla, CerrarPlanilla cerrarPlanilla) {
+                              ListarCierresPlanilla listarCierresPlanilla, CerrarPlanilla cerrarPlanilla,
+                              PrevisualizarPlanilla previsualizarPlanilla) {
         this.listarIngresos = listarIngresos;
         this.registrarIngreso = registrarIngreso;
         this.listarEgresos = listarEgresos;
         this.registrarEgreso = registrarEgreso;
         this.listarCierresPlanilla = listarCierresPlanilla;
         this.cerrarPlanilla = cerrarPlanilla;
+        this.previsualizarPlanilla = previsualizarPlanilla;
     }
 
     @GetMapping("/ingresos")
@@ -65,6 +69,14 @@ public class FinanzasController {
     public List<CierrePlanillaResponse> listarCierres(UsuarioSesion actor,
                                                       @RequestParam(required = false) Integer idObra) {
         return listarCierresPlanilla.ejecutar(actor, idObra).stream().map(CierrePlanillaResponse::de).toList();
+    }
+
+    @GetMapping("/planillas/preview")
+    public PrevisualizarPlanilla.ResumenPlanilla previsualizarPlanilla(UsuarioSesion actor,
+                                                                       @RequestParam Integer idObra,
+                                                                       @RequestParam LocalDate desde,
+                                                                       @RequestParam LocalDate hasta) {
+        return previsualizarPlanilla.ejecutar(actor, idObra, desde, hasta);
     }
 
     @PostMapping("/planillas/cerrar")

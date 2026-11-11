@@ -104,6 +104,27 @@ class PersonalAsistenciaProduccionTest {
                         hoy, LocalTime.of(8, 0), LocalTime.of(17, 0), "PRESENTE"));
     }
 
+    @Test
+    void asistenciaEnLoteRegistraMultiplesEmpleadosYAceptaFaltaSinHoras() {
+        Empleado e1 = guardarEmpleado.ejecutar(residente, null, "Carlos", "12345678",
+                "Operario", new BigDecimal("100"), LocalDate.of(2026, 9, 1));
+        Empleado e2 = guardarEmpleado.ejecutar(residente, null, "Lucia", "87654321",
+                "Oficial", new BigDecimal("90"), LocalDate.of(2026, 9, 1));
+        LocalDate hoy = LocalDate.of(2026, 10, 15);
+
+        RegistrarAsistenciaLote loteUc = new RegistrarAsistenciaLote(registrarAsistencia);
+        List<Asistencia> guardadas = loteUc.ejecutar(residente, 1, hoy, List.of(
+                new RegistrarAsistenciaLote.FilaAsistencia(e1.getIdEmpleado(), "PRESENTE",
+                        LocalTime.of(8, 0), LocalTime.of(17, 0)),
+                new RegistrarAsistenciaLote.FilaAsistencia(e2.getIdEmpleado(), "FALTA", null, null)
+        ));
+
+        assertEquals(2, guardadas.size());
+        assertEquals("PRESENTE", guardadas.get(0).getEstado());
+        assertEquals("FALTA", guardadas.get(1).getEstado());
+        assertNull(guardadas.get(1).getHoraEntrada());
+    }
+
     // ---------- RF-12 Producción ----------
 
     @Test

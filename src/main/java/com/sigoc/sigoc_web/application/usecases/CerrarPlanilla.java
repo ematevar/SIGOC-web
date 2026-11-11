@@ -36,65 +36,32 @@ public class CerrarPlanilla {
         this.clock = clock;
     }
 
+    public record LineaPlanilla(Empleado empleado, long dias, BigDecimal subtotal) {
+    }
+
+    public record CalculoPlanilla(Obra obra, List<LineaPlanilla> lineas, BigDecimal total) {
+    }
+
     public CierrePlanilla ejecutar(UsuarioSesion actor, Integer idObra, LocalDate desde, LocalDate hasta) {
         PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.CONTADOR);
-        if (actor == null || actor.idUsuario() == null || actor.idUsuario() <= 0
-                || idObra == null || idObra <= 0 || desde == null || hasta == null
-                || hasta.isBefore(desde) || hasta.isAfter(LocalDate.now(clock))) {
-            throw new ReglaNegocioException("Verifica la obra y el rango de fechas (sin fechas futuras).");
+        if (actor == null || actor.idUsuario() == null || actor.idUsuario() <= 0) {
+            throw new ReglaNegocioException("Sesión de usuario inválida para cerrar planilla.");
         }
-
-        Obra obra = obraPort.findByIdParaActualizar(idObra).orElse(null);
-        if (obra == null || !obra.isOperable()) {
-            throw new ReglaNegocioException("La obra no existe o no está operativa (RF-14).");
-        }
-
-        if (cierrePort.findSolapado(idObra, desde, hasta).isPresent()) {
-            throw new ReglaNegocioException(
-                    "El periodo seleccionado se solapa con un cierre de planilla existente (RF-14).");
-        }
-
-        List<Asistencia> asistencias = asistenciaPort.findActivasByObraYPeriodo(idObra, desde, hasta);
-        Map<Integer, Long> diasPorEmpleado = new LinkedHashMap<>();
-        for (Asistencia a : asistencias) {
-            if (a.esAsistenciaValida()) {
-                diasPorEmpleado.merge(a.getIdEmpleado(), 1L, Long::sum);
-            }
-        }
-
-        record LineaPago(Empleado empleado, long dias, BigDecimal subtotal) {}
-        List<LineaPago> lineas = new ArrayList<>();
-        BigDecimal total = BigDecimal.ZERO;
-
-        for (Map.Entry<Integer, Long> entry : diasPorEmpleado.entrySet()) {
-            Empleado emp = empleadoPort.findById(entry.getKey()).orElse(null);
-            if (emp == null || emp.getJornalDiario() == null) {
-                continue;
-            }
-            BigDecimal subtotal = emp.getJornalDiario()
-                    .multiply(BigDecimal.valueOf(entry.getValue()))
-                    .setScale(2, RoundingMode.HALF_UP);
-            if (subtotal.compareTo(BigDecimal.ZERO) > 0) {
-                lineas.add(new LineaPago(emp, entry.getValue(), subtotal));
-                total = total.add(subtotal);
-            }
-        }
-
-        if (lineas.isEmpty() || total.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ReglaNegocioException("No hay asistencias válidas para cerrar en ese periodo.");
-        }
+        CalculoPlanilla calculo = calcularPlanilla(
+                cierrePort, obraPort, asistenciaPort, empleadoPort, clock,
+                idObra, desde, hasta, true);
 
         CierrePlanilla cierre = new CierrePlanilla();
         cierre.setIdObra(idObra);
         cierre.setFechaInicioPeriodo(desde);
         cierre.setFechaFinPeriodo(hasta);
         cierre.setFechaCierre(LocalDateTime.now(clock));
-        cierre.setMontoTotal(total.setScale(2, RoundingMode.HALF_UP));
+        cierre.setMontoTotal(calculo.total());
         cierre.setIdUsuario(actor.idUsuario());
         cierre.setActivo(true);
         CierrePlanilla guardado = cierrePort.guardar(cierre);
 
-        for (LineaPago linea : lineas) {
+        for (LineaPlanilla linea : calculo.lineas()) {
             String concepto = "Planilla " + desde + " al " + hasta + " — "
                     + linea.empleado().getNombresApellidos() + " (" + linea.dias() + "d)";
             if (concepto.length() > 150) {
@@ -112,5 +79,61 @@ public class CerrarPlanilla {
         }
 
         return guardado;
+    }
+
+    static CalculoPlanilla calcularPlanilla(CierrePlanillaPort cierrePort,
+                                            ObraPort obraPort,
+                                            AsistenciaPort asistenciaPort,
+                                            EmpleadoPort empleadoPort,
+                                            Clock clock,
+                                            Integer idObra,
+                                            LocalDate desde,
+                                            LocalDate hasta,
+                                            boolean bloquearObra) {
+        if (idObra == null || idObra <= 0 || desde == null || hasta == null
+                || hasta.isBefore(desde) || hasta.isAfter(LocalDate.now(clock))) {
+            throw new ReglaNegocioException("Verifica la obra y el rango de fechas (sin fechas futuras).");
+        }
+
+        Obra obra = (bloquearObra ? obraPort.findByIdParaActualizar(idObra) : obraPort.findById(idObra)).orElse(null);
+        if (obra == null || !obra.isOperable()) {
+            throw new ReglaNegocioException("La obra no existe o no está operativa (RF-14).");
+        }
+
+        if (cierrePort.findSolapado(idObra, desde, hasta).isPresent()) {
+            throw new ReglaNegocioException(
+                    "El periodo seleccionado se solapa con un cierre de planilla existente (RF-14).");
+        }
+
+        List<Asistencia> asistencias = asistenciaPort.findActivasByObraYPeriodo(idObra, desde, hasta);
+        Map<Integer, Long> diasPorEmpleado = new LinkedHashMap<>();
+        for (Asistencia a : asistencias) {
+            if (a.esAsistenciaValida()) {
+                diasPorEmpleado.merge(a.getIdEmpleado(), 1L, Long::sum);
+            }
+        }
+
+        List<LineaPlanilla> lineas = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
+
+        for (Map.Entry<Integer, Long> entry : diasPorEmpleado.entrySet()) {
+            Empleado emp = empleadoPort.findById(entry.getKey()).orElse(null);
+            if (emp == null || emp.getJornalDiario() == null) {
+                continue;
+            }
+            BigDecimal subtotal = emp.getJornalDiario()
+                    .multiply(BigDecimal.valueOf(entry.getValue()))
+                    .setScale(2, RoundingMode.HALF_UP);
+            if (subtotal.compareTo(BigDecimal.ZERO) > 0) {
+                lineas.add(new LineaPlanilla(emp, entry.getValue(), subtotal));
+                total = total.add(subtotal);
+            }
+        }
+
+        if (lineas.isEmpty() || total.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ReglaNegocioException("No hay asistencias válidas para cerrar en ese periodo.");
+        }
+
+        return new CalculoPlanilla(obra, lineas, total.setScale(2, RoundingMode.HALF_UP));
     }
 }
