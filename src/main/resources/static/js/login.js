@@ -8,8 +8,11 @@ async function cargarCaptcha() {
     captchaDisplay.textContent = '...';
     try {
         const res = await fetch('/api/auth/captcha', { credentials: 'same-origin' });
+        if (!res.ok) {
+            throw new Error('HTTP ' + res.status);
+        }
         const data = await res.json();
-        captchaDisplay.textContent = data.codigo || 'ERR';
+        captchaDisplay.textContent = data.captcha || 'ERR';
         captchaInput.value = '';
     } catch {
         captchaDisplay.textContent = 'ERR';
