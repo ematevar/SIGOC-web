@@ -119,4 +119,23 @@ public class CasosUsoConfig {
     public EliminarMaterialPartida eliminarMaterialPartida(PartidaMaterialPort partidaMaterialPort) {
         return new EliminarMaterialPartida(partidaMaterialPort);
     }
+
+    // ---------- Avances físicos (RF-05) ----------
+
+    @Bean
+    public ObtenerAvanceObra obtenerAvanceObra(ObraPort obraPort, PartidaPort partidaPort,
+                                               AvancePartidaPort avancePort) {
+        return new ObtenerAvanceObra(obraPort, partidaPort, avancePort);
+    }
+
+    @Bean
+    public RegistrarAvance registrarAvance(AvancePartidaPort avancePort, PartidaPort partidaPort,
+                                           ObraPort obraPort, ObtenerAvanceObra obtenerAvanceObra, Clock clock) {
+        return new RegistrarAvance(avancePort, partidaPort, obraPort, obtenerAvanceObra, clock);
+    }
+
+    @Bean
+    public ListarAvances listarAvances(AvancePartidaPort avancePort) {
+        return new ListarAvances(avancePort);
+    }
 }
