@@ -1181,28 +1181,98 @@ async function renderFinanzas() {
     };
 }
 
+function renderBarrasComparativasSvg(tituloIzq, tituloDer, colorIzq, colorDer, pares, unidad = '') {
+    if (!pares || pares.length === 0) {
+        return '<p style="color:var(--muted);">Sin registros suficientes para graficar.</p>';
+    }
+    const items = pares.slice(0, 10);
+    const w = 740, padL = 170, padR = 24, padT = 18, rowH = 30;
+    const h = padT + items.length * rowH + 20;
+    const maxVal = Math.max(1, ...items.flatMap(it => [Math.abs(it.v1), Math.abs(it.v2)]));
+    const barMaxW = w - padL - padR;
+
+    const barras = items.map((it, idx) => {
+        const y = padT + idx * rowH;
+        const w1 = (Math.max(0, it.v1) * barMaxW) / maxVal;
+        const w2 = (Math.max(0, it.v2) * barMaxW) / maxVal;
+        const label = it.label.length > 22 ? it.label.slice(0, 21) + '…' : it.label;
+        return `
+            <text x="${padL - 8}" y="${y + 15}" text-anchor="end" font-size="11" fill="#334155">${esc(label)}</text>
+            <rect x="${padL}" y="${y + 2}" width="${w1.toFixed(1)}" height="10" rx="2" fill="${colorIzq}">
+                <title>${esc(it.label)} — ${esc(tituloIzq)}: ${it.v1}${esc(unidad)}</title>
+            </rect>
+            <rect x="${padL}" y="${y + 14}" width="${w2.toFixed(1)}" height="10" rx="2" fill="${colorDer}">
+                <title>${esc(it.label)} — ${esc(tituloDer)}: ${it.v2}${esc(unidad)}</title>
+            </rect>`;
+    }).join('');
+
+    return `<div class="chart-box">
+        <svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:760px;display:block;">${barras}</svg>
+        <div style="font-size:12px;color:var(--muted);display:flex;gap:16px;margin-top:6px;">
+            <span><strong style="color:${colorIzq};">■</strong> ${esc(tituloIzq)}</span>
+            <span><strong style="color:${colorDer};">■</strong> ${esc(tituloDer)}</span>
+        </div>
+    </div>`;
+}
+
+function renderReporteSvg(tipo, reporte) {
+    const filas = reporte.filas || [];
+    if (filas.length === 0) return '<p style="color:var(--muted);">Sin datos para graficar.</p>';
+    switch (tipo) {
+        case 'CURVA_S':
+            return renderCurvaSSvg(reporte);
+        case 'CONSUMO_MATERIALES':
+            return renderBarrasComparativasSvg(
+                'Presupuestado', 'Consumo Real', '#2563eb', '#f59e0b',
+                filas.map(r => ({ label: String(r[0]), v1: Number(r[2]) || 0, v2: Number(r[3]) || 0 }))
+            );
+        case 'PERSONAL_PRODUCTIVIDAD':
+            return renderBarrasComparativasSvg(
+                'Asistencia (%)', 'Producción Total', '#059669', '#2563eb',
+                filas.map(r => ({ label: String(r[1]), v1: Number(r[4]) || 0, v2: Number(r[5]) || 0 }))
+            );
+        case 'FINANCIERO':
+            return renderBarrasComparativasSvg(
+                'Ingresos (S/)', 'Total Egresos (S/)', '#059669', '#dc2626',
+                filas.map(r => ({ label: String(r[0]), v1: Number(r[1]) || 0, v2: Number(r[5]) || 0 })), ' S/'
+            );
+        case 'VALORIZACIONES_COBRANZAS':
+            return renderBarrasComparativasSvg(
+                'Valorizado (S/)', 'Cobrado (S/)', '#2563eb', '#059669',
+                filas.map(r => ({ label: `${r[0]} · ${r[1]}`, v1: Number(r[4]) || 0, v2: Number(r[7]) || 0 })), ' S/'
+            );
+        default:
+            return '';
+    }
+}
+
 function renderCurvaSSvg(reporte) {
     const filas = reporte.filas || [];
     if (filas.length === 0) return '<p style="color:var(--muted);">Sin datos para graficar Curva S.</p>';
-    const w = 720, h = 250, pad = 42;
+    const w = 740, h = 270, padL = 46, padR = 24, padT = 20, padB = 48;
     const n = filas.length;
-    const xAt = i => n === 1 ? w / 2 : pad + (i * (w - pad * 2)) / (n - 1);
-    const yAt = v => h - pad - (Math.max(0, Math.min(100, Number(v) || 0)) * (h - pad * 2)) / 100;
+    const xAt = i => n === 1 ? (padL + w - padR) / 2 : padL + (i * (w - padL - padR)) / (n - 1);
+    const yAt = v => h - padB - (Math.max(0, Math.min(100, Number(v) || 0)) * (h - padT - padB)) / 100;
 
     const ptsPlan = filas.map((r, i) => `${xAt(i)},${yAt(r[2])}`).join(' ');
     const ptsEjec = filas.map((r, i) => `${xAt(i)},${yAt(r[3])}`).join(' ');
     const grid = [0, 25, 50, 75, 100].map(v => {
         const y = yAt(v);
-        return `<line x1="${pad}" y1="${y}" x2="${w - pad}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>
-                <text x="${pad - 8}" y="${y + 4}" text-anchor="end" font-size="10" fill="#64748b">${v}%</text>`;
+        return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>
+                <text x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="10" fill="#64748b">${v}%</text>`;
     }).join('');
+    const pasoEtiqueta = Math.max(1, Math.ceil(n / 7));
+    const xLabels = filas.map((r, i) => (i % pasoEtiqueta === 0 || i === n - 1)
+        ? `<text x="${xAt(i)}" y="${h - 14}" text-anchor="middle" font-size="10" fill="#64748b">${esc(String(r[1] || r[0]).slice(0, 12))}</text>`
+        : '').join('');
     const dots = filas.map((r, i) => `
-        <circle cx="${xAt(i)}" cy="${yAt(r[2])}" r="3.5" fill="#0066cc"/>
-        <circle cx="${xAt(i)}" cy="${yAt(r[3])}" r="3.5" fill="#059669"/>`).join('');
+        <circle cx="${xAt(i)}" cy="${yAt(r[2])}" r="3.5" fill="#0066cc"><title>${esc(r[0])} (${esc(r[1])}) · Plan: ${r[2]}%</title></circle>
+        <circle cx="${xAt(i)}" cy="${yAt(r[3])}" r="3.5" fill="#059669"><title>${esc(r[0])} (${esc(r[1])}) · Ejec: ${r[3]}%</title></circle>`).join('');
 
     return `<div class="chart-box">
-        <svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:740px;display:block;">
+        <svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:760px;display:block;">
             ${grid}
+            ${xLabels}
             <polyline fill="none" stroke="#0066cc" stroke-width="2.5" points="${ptsPlan}"/>
             <polyline fill="none" stroke="#059669" stroke-width="2.5" points="${ptsEjec}"/>
             ${dots}
@@ -1218,7 +1288,7 @@ async function renderReportes() {
     const obras = await api('/api/obras');
     moduleContainer.innerHTML = `
         <div class="card">
-            <h3>Reportes Gerenciales (RF-16)</h3>
+            <h3>Reportes Gerenciales (RF-16 / RF-22)</h3>
             <form id="formRep" class="form-grid">
                 <div class="form-group"><label>Tipo de Reporte</label>
                     <select id="rpTipo">
@@ -1226,6 +1296,7 @@ async function renderReportes() {
                         <option value="CONSUMO_MATERIALES">Consumo de Materiales Real vs Presupuestado</option>
                         <option value="PERSONAL_PRODUCTIVIDAD">Personal — Asistencia y Productividad</option>
                         <option value="FINANCIERO">Estado Financiero y Rentabilidad</option>
+                        <option value="VALORIZACIONES_COBRANZAS">Valorizaciones, Comprobantes y Cobranzas (RF-22)</option>
                     </select>
                 </div>
                 <div class="form-group"><label>Obra (opcional)</label>
@@ -1241,8 +1312,8 @@ async function renderReportes() {
                 </div>
             </form>
         </div>
-        <div id="rpChartCard" class="card hidden">
-            <h3>Gráfico Curva S</h3>
+        <div id="rpChartCard" class="card">
+            <h3 id="rpChartTitulo">Gráfico del Reporte</h3>
             <div id="rpChart"></div>
         </div>
         <div class="card">
@@ -1263,15 +1334,11 @@ async function renderReportes() {
 
     async function cargarReporte() {
         const p = queryParams();
+        const tipo = document.getElementById('rpTipo').value;
         const rep = await api(`/api/reportes?${p.toString()}`);
         document.getElementById('rpTitulo').textContent = rep.titulo;
-        const chartCard = document.getElementById('rpChartCard');
-        if (document.getElementById('rpTipo').value === 'CURVA_S') {
-            chartCard.classList.remove('hidden');
-            document.getElementById('rpChart').innerHTML = renderCurvaSSvg(rep);
-        } else {
-            chartCard.classList.add('hidden');
-        }
+        document.getElementById('rpChartTitulo').textContent = `Visualización — ${rep.titulo}`;
+        document.getElementById('rpChart').innerHTML = renderReporteSvg(tipo, rep);
         const thead = `<thead><tr>${rep.columnas.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead>`;
         const tbody = `<tbody>${rep.filas.map(f => `<tr>${f.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>`;
         document.getElementById('rpTabla').innerHTML = thead + tbody;

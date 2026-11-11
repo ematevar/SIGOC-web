@@ -17,9 +17,10 @@ class ReportesTest {
 
     private static final UsuarioSesion ADMIN = new UsuarioSesion(1, "admin", "Admin", RolSistema.ADMIN, false);
     private static final UsuarioSesion ALMACENERO = new UsuarioSesion(3, "alm", "Alm", RolSistema.ALMACENERO, false);
+    private static final UsuarioSesion CONTADOR = new UsuarioSesion(4, "cont", "Contador", RolSistema.CONTADOR, false);
 
     @Test
-    void soloAdminPuedeGenerarYValidaRangoFechas() {
+    void soloAdminYContadorPuedenGenerarYValidaRangoFechas() {
         GenerarReporte uc = new GenerarReporte(fakePort());
 
         assertThrows(AccesoDenegadoException.class,
@@ -33,17 +34,21 @@ class ReportesTest {
                 LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30));
         assertEquals("Curva S Fake", curva.titulo());
         assertEquals(1, curva.filas().size());
+
+        Reporte valCob = uc.ejecutar(CONTADOR, TipoReporte.VALORIZACIONES_COBRANZAS, 1, null, null);
+        assertEquals("Valorizaciones Fake", valCob.titulo());
+        assertEquals(1, valCob.filas().size());
     }
 
     @Test
-    void exportaCsvXlsxYPdfConFirmasValidas() {
+    void exportaCsvXlsxYPdfSinTruncamientoYConFirmasValidas() {
         GenerarReporte generar = new GenerarReporte(fakePort());
         ExportarReporte exportar = new ExportarReporte(generar, new ExportadorReporteAdapter());
 
         byte[] csv = exportar.ejecutar(ADMIN, TipoReporte.FINANCIERO, FormatoExportacion.CSV, null, null, null);
         String csvTexto = new String(csv, StandardCharsets.UTF_8);
         assertTrue(csvTexto.startsWith("\uFEFF\"Obra\",\"Saldo\""));
-        assertTrue(csvTexto.contains("\"Obra Norte\",\"1500.5\""));
+        assertTrue(csvTexto.contains("\"Construcción Integral Hospital Regional Norte\""));
 
         byte[] xlsx = exportar.ejecutar(ADMIN, TipoReporte.FINANCIERO, FormatoExportacion.XLSX, null, null, null);
         assertTrue(xlsx.length > 100);
@@ -53,12 +58,14 @@ class ReportesTest {
         byte[] pdf = exportar.ejecutar(ADMIN, TipoReporte.FINANCIERO, FormatoExportacion.PDF, null, null, null);
         String pdfCabecera = new String(pdf, 0, Math.min(pdf.length, 16), StandardCharsets.ISO_8859_1);
         assertTrue(pdfCabecera.startsWith("%PDF-1.4"));
+        assertTrue(pdf.length > 800);
     }
 
     @Test
     void convierteParametrosDeTipoYFormato() {
         assertEquals(TipoReporte.CURVA_S, TipoReporte.desdeParametro("0"));
         assertEquals(TipoReporte.CONSUMO_MATERIALES, TipoReporte.desdeParametro("CONSUMO_MATERIALES"));
+        assertEquals(TipoReporte.VALORIZACIONES_COBRANZAS, TipoReporte.desdeParametro("4"));
         assertEquals(FormatoExportacion.XLSX, FormatoExportacion.desdeParametro("excel"));
         assertThrows(ReglaNegocioException.class, () -> TipoReporte.desdeParametro("invalido"));
         assertThrows(ReglaNegocioException.class, () -> FormatoExportacion.desdeParametro("docx"));
@@ -85,7 +92,13 @@ class ReportesTest {
             @Override
             public Reporte consultarFinanciero(Integer idObra, LocalDate desde, LocalDate hasta) {
                 return new Reporte("Financiero Fake", List.of("Obra", "Saldo"),
-                        List.of(List.of("Obra Norte", 1500.5)));
+                        List.of(List.of("Construcción Integral Hospital Regional Norte", 1500.5)));
+            }
+
+            @Override
+            public Reporte consultarValorizacionesCobranzas(Integer idObra, LocalDate desde, LocalDate hasta) {
+                return new Reporte("Valorizaciones Fake", List.of("Obra", "Val. N°", "Total"),
+                        List.of(List.of("Obra Norte", "N° 1", 295000.0)));
             }
         };
     }

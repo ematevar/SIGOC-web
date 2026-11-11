@@ -123,16 +123,17 @@ public class ReporteJdbcAdapter implements ReporteQueryPort {
             String und = rs.getString("unidad_medida");
             double comprada = rs.getDouble("cant_comprada");
             double tablaPres = rs.getDouble("cant_tabla_presup");
-            double real = rs.getDouble("consumo_real");
-            double stock = rs.getDouble("stock_actual");
-            double minimo = rs.getDouble("stock_minimo");
+            double real = redondear2(rs.getDouble("consumo_real"));
+            double stock = redondear2(rs.getDouble("stock_actual"));
+            double minimo = redondear2(rs.getDouble("stock_minimo"));
 
-            double presupuestado = tablaPres > 0 ? tablaPres : (comprada > 0 ? comprada : (real + stock));
-            double desvAbs = redondear2(real - presupuestado);
-            double desvPct = presupuestado > 0 ? redondear2(((real - presupuestado) * 100.0) / presupuestado) : 0.0;
+            // C08: Solo usa presupuesto explícito de partida_material; nunca sustituye con compras históricas.
+            Object presVal = tablaPres > 0 ? redondear2(tablaPres) : "Sin presupuesto";
+            Object desvAbs = tablaPres > 0 ? redondear2(real - tablaPres) : "N/A";
+            Object desvPct = tablaPres > 0 ? redondear2(((real - tablaPres) * 100.0) / tablaPres) : "N/A";
 
-            if (idObra == 0 || presupuestado > 0 || real > 0) {
-                rows.add(List.of(mat, und, presupuestado, real, desvAbs, desvPct, stock, minimo));
+            if (idObra == 0 || tablaPres > 0 || comprada > 0 || real > 0) {
+                rows.add(List.of(mat, und, presVal, real, desvAbs, desvPct, stock, minimo));
             }
         });
         return new Reporte("Consumo de materiales real vs. presupuestado", cols, rows);
@@ -229,6 +230,57 @@ public class ReporteJdbcAdapter implements ReporteQueryPort {
             return List.of(rs.getString("obra"), ing, mat, pla, otr, totEgr, utilidad, rentPct);
         });
         return new Reporte("Estado financiero, utilidad y rentabilidad por obra", cols, rows);
+    }
+
+    @Override
+    public Reporte consultarValorizacionesCobranzas(Integer idObra, LocalDate desde, LocalDate hasta) {
+        String sql = """
+                SELECT o.nombre AS obra, v.numero AS num_val, v.periodo, v.porcentaje_avance_periodo,
+                       v.monto_valorizado, v.estado AS estado_val,
+                       COALESCE(c.serie_numero, 'Sin comprobante') AS comprobante,
+                       COALESCE(c.estado, '-') AS estado_comp,
+                       COALESCE(SUM(CASE WHEN p.estado='APROBADO' AND p.activo=1 THEN p.monto ELSE 0 END), 0) AS cobrado,
+                       MAX(CASE WHEN p.estado='APROBADO' AND p.activo=1 THEN p.fecha_pago ELSE NULL END) AS fecha_pago
+                FROM valorizacion v
+                JOIN obra o ON o.id_obra = v.id_obra
+                LEFT JOIN comprobante c ON c.id_valorizacion = v.id_valorizacion AND c.activo = 1
+                LEFT JOIN pago p ON p.id_valorizacion = v.id_valorizacion AND p.activo = 1
+                WHERE o.activo = 1 AND v.activo = 1
+                  AND (? = 0 OR v.id_obra = ?)
+                  AND (? IS NULL OR v.fecha_emision >= ?)
+                  AND (? IS NULL OR v.fecha_emision <= ?)
+                GROUP BY o.nombre, v.id_valorizacion, v.numero, v.periodo, v.porcentaje_avance_periodo,
+                         v.monto_valorizado, v.estado, c.serie_numero, c.estado
+                ORDER BY o.nombre, v.numero
+                """;
+
+        List<String> cols = List.of(
+                "Obra", "Val. N°", "Periodo", "Avance Periodo (%)", "Valorizado (S/)",
+                "Comprobante", "Estado", "Cobrado (S/)", "Fecha Cobro", "Saldo Pendiente (S/)"
+        );
+        List<List<Object>> rows = jdbcTemplate.query(sql, ps -> {
+            int i = setObraFiltro(ps, 1, idObra);
+            setRangoFechas(ps, i, desde, hasta);
+        }, (rs, rowNum) -> {
+            double total = redondear2(rs.getDouble("monto_valorizado"));
+            double cobrado = redondear2(rs.getDouble("cobrado"));
+            double saldo = redondear2(Math.max(0.0, total - cobrado));
+            java.sql.Timestamp tsPago = rs.getTimestamp("fecha_pago");
+            String fechaCobro = tsPago != null ? tsPago.toLocalDateTime().toLocalDate().toString() : "-";
+            return List.<Object>of(
+                    rs.getString("obra"),
+                    "N° " + rs.getInt("num_val"),
+                    rs.getString("periodo"),
+                    redondear2(rs.getDouble("porcentaje_avance_periodo")),
+                    total,
+                    rs.getString("comprobante"),
+                    rs.getString("estado_val"),
+                    cobrado,
+                    fechaCobro,
+                    saldo
+            );
+        });
+        return new Reporte("Estado de valorizaciones, comprobantes emitidos y cobranzas por obra", cols, rows);
     }
 
     private int setObraFiltro(PreparedStatement ps, int idx, Integer idObra) throws SQLException {

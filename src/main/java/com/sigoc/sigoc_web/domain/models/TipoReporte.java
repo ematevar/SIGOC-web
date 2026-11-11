@@ -3,13 +3,14 @@ package com.sigoc.sigoc_web.domain.models;
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
 
 /**
- * RF-16: los 4 tipos de reporte gerencial soportados.
+ * RF-16 / RF-22: los 5 tipos de reporte gerencial soportados.
  */
 public enum TipoReporte {
     CURVA_S(0),
     CONSUMO_MATERIALES(1),
     PERSONAL_PRODUCTIVIDAD(2),
-    FINANCIERO(3);
+    FINANCIERO(3),
+    VALORIZACIONES_COBRANZAS(4);
 
     private final int indice;
 
@@ -31,6 +32,7 @@ public enum TipoReporte {
             case "1", "CONSUMO_MATERIALES", "MATERIALES", "CONSUMO" -> CONSUMO_MATERIALES;
             case "2", "PERSONAL_PRODUCTIVIDAD", "PERSONAL", "PRODUCTIVIDAD" -> PERSONAL_PRODUCTIVIDAD;
             case "3", "FINANCIERO", "FINANZAS" -> FINANCIERO;
+            case "4", "VALORIZACIONES_COBRANZAS", "VALORIZACIONES", "COBRANZAS" -> VALORIZACIONES_COBRANZAS;
             default -> throw new ReglaNegocioException("Tipo de reporte desconocido: " + valor);
         };
     }

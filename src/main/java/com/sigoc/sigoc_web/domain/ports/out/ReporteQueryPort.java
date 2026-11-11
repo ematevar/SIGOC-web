@@ -12,4 +12,6 @@ public interface ReporteQueryPort {
     Reporte consultarPersonalProductividad(Integer idObra, LocalDate desde, LocalDate hasta);
 
     Reporte consultarFinanciero(Integer idObra, LocalDate desde, LocalDate hasta);
+
+    Reporte consultarValorizacionesCobranzas(Integer idObra, LocalDate desde, LocalDate hasta);
 }

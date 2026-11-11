@@ -37,6 +37,7 @@ public class GenerarReporte implements GenerarReporteUseCase {
             case CONSUMO_MATERIALES -> reporteQueryPort.consultarConsumoMateriales(obraFiltro, desde, hasta);
             case PERSONAL_PRODUCTIVIDAD -> reporteQueryPort.consultarPersonalProductividad(obraFiltro, desde, hasta);
             case FINANCIERO -> reporteQueryPort.consultarFinanciero(obraFiltro, desde, hasta);
+            case VALORIZACIONES_COBRANZAS -> reporteQueryPort.consultarValorizacionesCobranzas(obraFiltro, desde, hasta);
         };
     }
 }

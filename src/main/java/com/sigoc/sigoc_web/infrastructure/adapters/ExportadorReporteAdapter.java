@@ -1,22 +1,27 @@
 package com.sigoc.sigoc_web.infrastructure.adapters;
 
+import com.lowagie.text.*;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
 import com.sigoc.sigoc_web.domain.models.FormatoExportacion;
 import com.sigoc.sigoc_web.domain.models.Reporte;
 import com.sigoc.sigoc_web.domain.ports.out.ExportadorReportePort;
 import org.springframework.stereotype.Component;
 
+import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 /**
- * Exportador puro en memoria a CSV (UTF-8 BOM), Excel OpenXML (.xlsx) y PDF 1.4 estándar (RF-16).
+ * Exportador en memoria a CSV (UTF-8 BOM), Excel OpenXML (.xlsx) con ancho automático
+ * y PDF 1.4 completo con OpenPDF sin truncamiento de columnas (RF-16, C20).
  */
 @Component
 public class ExportadorReporteAdapter implements ExportadorReportePort {
@@ -77,16 +82,36 @@ public class ExportadorReporteAdapter implements ExportadorReportePort {
                     + "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/>"
                     + "</Relationships>");
 
+            List<String> cols = reporte.columnas();
+            int[] anchos = new int[cols.size()];
+            for (int c = 0; c < cols.size(); c++) {
+                anchos[c] = Math.max(12, Math.min(48, cols.get(c).length() + 4));
+            }
+            for (List<Object> fila : reporte.filas()) {
+                for (int c = 0; c < fila.size() && c < anchos.length; c++) {
+                    String txt = fila.get(c) == null ? "" : fila.get(c).toString();
+                    anchos[c] = Math.max(anchos[c], Math.min(54, txt.length() + 4));
+                }
+            }
+
             StringBuilder sheet = new StringBuilder();
             sheet.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")
-                 .append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
+                 .append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">");
+            if (anchos.length > 0) {
+                sheet.append("<cols>");
+                for (int c = 0; c < anchos.length; c++) {
+                    sheet.append("<col min=\"").append(c + 1).append("\" max=\"").append(c + 1)
+                         .append("\" width=\"").append(anchos[c]).append("\" customWidth=\"1\"/>");
+                }
+                sheet.append("</cols>");
+            }
+            sheet.append("<sheetData>");
 
             sheet.append("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>")
                  .append(escaparXml(reporte.titulo()))
                  .append("</t></is></c></row>");
 
             sheet.append("<row r=\"2\">");
-            List<String> cols = reporte.columnas();
             for (int c = 0; c < cols.size(); c++) {
                 String ref = columnaExcel(c) + "2";
                 sheet.append("<c r=\"").append(ref).append("\" t=\"inlineStr\"><is><t>")
@@ -125,100 +150,62 @@ public class ExportadorReporteAdapter implements ExportadorReportePort {
     }
 
     private byte[] exportarPdf(Reporte reporte) {
-        List<List<Object>> filas = reporte.filas();
-        int filasPorPagina = 34;
-        int totalPaginas = Math.max(1, (filas.size() + filasPorPagina - 1) / filasPorPagina);
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Document doc = new Document(PageSize.A4.rotate(), 28, 28, 30, 30);
+            PdfWriter writer = PdfWriter.getInstance(doc, baos);
+            writer.setPdfVersion(PdfWriter.VERSION_1_4);
+            doc.open();
 
-        List<byte[]> streamsPaginas = new ArrayList<>();
-        for (int p = 0; p < totalPaginas; p++) {
-            StringBuilder stream = new StringBuilder();
-            stream.append("BT\n/F1 13 Tf\n36 555 Td\n(")
-                  .append(escaparPdf("SIGOC Web - " + reporte.titulo() + " (Pag. " + (p + 1) + "/" + totalPaginas + ")"))
-                  .append(") Tj\nET\n");
+            Font fTitulo = new Font(Font.HELVETICA, 13, Font.BOLD, new Color(15, 23, 42));
+            Font fHead = new Font(Font.HELVETICA, 8, Font.BOLD, Color.WHITE);
+            Font fCell = new Font(Font.HELVETICA, 8, Font.NORMAL, new Color(15, 23, 42));
 
-            stream.append("BT\n/F1 8 Tf\n36 535 Td\n(")
-                  .append(escaparPdf(formatearFilaPdf(reporte.columnas())))
-                  .append(") Tj\nET\n");
+            Paragraph title = new Paragraph("SIGOC Web — " + reporte.titulo(), fTitulo);
+            title.setSpacingAfter(10f);
+            doc.add(title);
 
-            int y = 518;
-            int inicio = p * filasPorPagina;
-            int fin = Math.min(filas.size(), inicio + filasPorPagina);
-            for (int r = inicio; r < fin; r++) {
-                stream.append("BT\n/F1 8 Tf\n36 ").append(y).append(" Td\n(")
-                      .append(escaparPdf(formatearFilaPdf(filas.get(r))))
-                      .append(") Tj\nET\n");
-                y -= 14;
+            List<String> cols = reporte.columnas();
+            int nCols = Math.max(1, cols.size());
+            PdfPTable table = new PdfPTable(nCols);
+            table.setWidthPercentage(100);
+            table.setHeaderRows(1);
+
+            for (String col : cols) {
+                PdfPCell hc = new PdfPCell(new Phrase(col, fHead));
+                hc.setBackgroundColor(new Color(30, 58, 138));
+                hc.setPadding(5f);
+                table.addCell(hc);
             }
-            streamsPaginas.add(stream.toString().getBytes(StandardCharsets.ISO_8859_1));
-        }
 
-        ByteArrayOutputStream pdf = new ByteArrayOutputStream();
-        List<Integer> offsets = new ArrayList<>();
-        escribirAscii(pdf, "%PDF-1.4\n");
-
-        offsets.add(pdf.size());
-        escribirAscii(pdf, "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
-
-        StringBuilder kids = new StringBuilder("[");
-        for (int p = 0; p < totalPaginas; p++) {
-            if (p > 0) {
-                kids.append(" ");
+            boolean par = false;
+            for (List<Object> fila : reporte.filas()) {
+                Color bg = par ? new Color(248, 250, 252) : Color.WHITE;
+                for (int i = 0; i < nCols; i++) {
+                    Object v = i < fila.size() ? fila.get(i) : "";
+                    String txt = v == null ? "" : v.toString();
+                    PdfPCell cell = new PdfPCell(new Phrase(txt, fCell));
+                    cell.setBackgroundColor(bg);
+                    cell.setPadding(4.5f);
+                    if (v instanceof Number) {
+                        cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    }
+                    table.addCell(cell);
+                }
+                par = !par;
             }
-            kids.append(4 + (p * 2)).append(" 0 R");
-        }
-        kids.append("]");
-
-        offsets.add(pdf.size());
-        escribirAscii(pdf, "2 0 obj\n<< /Type /Pages /Kids " + kids + " /Count " + totalPaginas + " >>\nendobj\n");
-
-        offsets.add(pdf.size());
-        escribirAscii(pdf, "3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>\nendobj\n");
-
-        for (int p = 0; p < totalPaginas; p++) {
-            int pageObjId = 4 + (p * 2);
-            int contentObjId = pageObjId + 1;
-            byte[] contentBytes = streamsPaginas.get(p);
-
-            offsets.add(pdf.size());
-            escribirAscii(pdf, pageObjId + " 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 3 0 R >> >> /Contents " + contentObjId + " 0 R >>\nendobj\n");
-
-            offsets.add(pdf.size());
-            escribirAscii(pdf, contentObjId + " 0 obj\n<< /Length " + contentBytes.length + " >>\nstream\n");
-            pdf.writeBytes(contentBytes);
-            escribirAscii(pdf, "\nendstream\nendobj\n");
-        }
-
-        int totalObjs = offsets.size() + 1;
-        int xrefOffset = pdf.size();
-        escribirAscii(pdf, "xref\n0 " + totalObjs + "\n0000000000 65535 f \n");
-        for (int off : offsets) {
-            escribirAscii(pdf, String.format("%010d 00000 n \n", off));
-        }
-        escribirAscii(pdf, "trailer\n<< /Size " + totalObjs + " /Root 1 0 R >>\nstartxref\n" + xrefOffset + "\n%%EOF\n");
-        return pdf.toByteArray();
-    }
-
-    private String formatearFilaPdf(List<?> celdas) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < celdas.size(); i++) {
-            if (i > 0) {
-                sb.append(" | ");
+            if (reporte.filas().isEmpty()) {
+                PdfPCell empty = new PdfPCell(new Phrase("No hay registros para los filtros seleccionados.", fCell));
+                empty.setColspan(nCols);
+                empty.setPadding(8f);
+                table.addCell(empty);
             }
-            String s = celdas.get(i) == null ? "" : celdas.get(i).toString();
-            if (s.length() > 18) {
-                s = s.substring(0, 18);
-            }
-            sb.append(String.format("%-18s", s));
+
+            doc.add(table);
+            doc.close();
+            return baos.toByteArray();
+        } catch (IOException ex) {
+            throw new UncheckedIOException("Error generando PDF del reporte", ex);
         }
-        return sb.toString();
-    }
-
-    private String escaparPdf(String s) {
-        return s.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)");
-    }
-
-    private void escribirAscii(ByteArrayOutputStream out, String s) {
-        out.writeBytes(s.getBytes(StandardCharsets.ISO_8859_1));
     }
 
     private void escribirEntradaZip(ZipOutputStream zos, String nombre, String contenido) throws IOException {
