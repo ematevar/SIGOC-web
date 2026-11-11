@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIGOC Web — Iniciar Sesión</title>
+    <link rel="stylesheet" th:href="@{/css/sigoc.css}" href="/css/sigoc.css">
+</head>
+<body class="login-page">
+<div class="login-card">
+    <span class="brand-badge">SIGOC WEB · ARQUITECTURA HEXAGONAL</span>
+    <h1>Control de Obras</h1>
+    <p class="login-subtitle">Ingresa tus credenciales y verifica el código de seguridad.</p>
+
+    <div id="loginError" class="alert alert-error hidden"></div>
+
+    <form id="loginForm" autocomplete="off">
+        <div class="form-group">
+            <label for="username">Usuario</label>
+            <input id="username" name="username" type="text" required autofocus placeholder="Ej. admin">
+        </div>
+        <div class="form-group">
+            <label for="password">Contraseña</label>
+            <input id="password" name="password" type="password" required placeholder="••••••••">
+        </div>
+        <div class="form-group">
+            <label for="captchaInput">Código de verificación (CAPTCHA)</label>
+            <div class="captcha-row">
+                <div id="captchaDisplay" class="captcha-code">-----</div>
+                <button type="button" id="btnRefreshCaptcha" class="btn btn-secondary" title="Nuevo código">↻</button>
+            </div>
+            <input id="captchaInput" name="captcha" type="text" maxlength="8" required placeholder="Escribe el código">
+        </div>
+        <button type="submit" id="btnLogin" class="btn btn-primary btn-block">Ingresar al sistema</button>
+    </form>
+</div>
+<script th:src="@{/js/login.js}" src="/js/login.js"></script>
+</body>
+</html>
