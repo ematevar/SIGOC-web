@@ -291,4 +291,52 @@ public class CasosUsoConfig {
     public ExportarReporte exportarReporte(GenerarReporte generarReporte, ExportadorReportePort exportadorPort) {
         return new ExportarReporte(generarReporte, exportadorPort);
     }
+
+    // --- Clientes, Valorizaciones, Comprobantes y Pagos ---
+
+    @Bean
+    public ListarClientes listarClientes(ClientePort clientePort) {
+        return new ListarClientes(clientePort);
+    }
+
+    @Bean
+    public GuardarCliente guardarCliente(ClientePort clientePort) {
+        return new GuardarCliente(clientePort);
+    }
+
+    @Bean
+    public EliminarCliente eliminarCliente(ClientePort clientePort) {
+        return new EliminarCliente(clientePort);
+    }
+
+    @Bean
+    public ListarValorizaciones listarValorizaciones(ValorizacionPort valorizacionPort) {
+        return new ListarValorizaciones(valorizacionPort);
+    }
+
+    @Bean
+    public RegistrarValorizacion registrarValorizacion(ValorizacionPort valorizacionPort, ObraPort obraPort, Clock clock) {
+        return new RegistrarValorizacion(valorizacionPort, obraPort, clock);
+    }
+
+    @Bean
+    public ListarComprobantes listarComprobantes(ComprobantePort comprobantePort) {
+        return new ListarComprobantes(comprobantePort);
+    }
+
+    @Bean
+    public EmitirComprobante emitirComprobante(ComprobantePort comprobantePort, ValorizacionPort valorizacionPort, Clock clock) {
+        return new EmitirComprobante(comprobantePort, valorizacionPort, clock);
+    }
+
+    @Bean
+    public ListarPagos listarPagos(PagoPort pagoPort) {
+        return new ListarPagos(pagoPort);
+    }
+
+    @Bean
+    public ProcesarPago procesarPago(PagoPort pagoPort, ObraPort obraPort, ValorizacionPort valorizacionPort,
+                                     ComprobantePort comprobantePort, IngresoPort ingresoPort, Clock clock) {
+        return new ProcesarPago(pagoPort, obraPort, valorizacionPort, comprobantePort, ingresoPort, clock);
+    }
 }
