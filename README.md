@@ -32,6 +32,7 @@ com.sigoc.sigoc_web
 | Compras y Consumos | RF-07, RF-08 | Compras con incremento de stock y egreso automático tipo `Material`; consumos con validación de stock y alerta (`/api/compras`, `/api/consumos`) |
 | Personal, Asistencia y Producción | RF-10, RF-11, RF-12 | Gestión de trabajadores, asistencia diaria con bloqueo en periodos cerrados y registro de producción (`/api/empleados`, `/api/asistencias`, `/api/produccion`) |
 | Finanzas y Planillas | RF-13, RF-14, RF-15 | Ingresos validados dentro del cronograma planificado de la obra, cierre inmutable de planilla sin solapamientos con generación de egresos `Planilla`, y egresos `Otro` (`/api/finanzas/**`) |
+| Clientes, Valorizaciones y Pagos | Módulo Financiero Web | Gestión de clientes contratantes con validación DNI/RUC SUNAT, valorizaciones periódicas por obra, emisión de comprobantes con cálculo de IGV (18%) y pasarela de pagos sandbox con ingreso automático (`/api/clientes`, `/api/valorizaciones`, `/api/pagos`) |
 | Reportes Gerenciales | RF-16 | Curva S (planificado vs. ejecutado), consumo real vs. presupuestado, asistencia/productividad, estado financiero y exportación nativa **PDF 1.4**, **Excel (.xlsx)** y **CSV UTF-8** (`/api/reportes`, `/api/reportes/exportar`) |
 | Interfaz Web | RNF-05, RNF-07 | Panel web Thymeleaf + JavaScript (`/login`, `/`) con control de acceso por perfil (`ADMIN`, `RESIDENTE`, `ALMACENERO`), alertas de stock y gráfico SVG Curva S |
 
@@ -41,6 +42,7 @@ Los scripts originales del esquema, datos iniciales y datos de prueba se encuent
 - `sql/sigoc_esquema.sql`
 - `sql/sigoc_datos_iniciales.sql`
 - `sql/sigoc_datos_prueba.sql`
+- `sql/sigoc_web_modulo_pagos.sql` (tablas `cliente`, `valorizacion`, `comprobante`, `pago`)
 
 La configuración de conexión JDBC/JPA está en `src/main/resources/application.properties` (`spring.jpa.hibernate.ddl-auto=none`).
 

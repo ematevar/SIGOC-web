@@ -19,6 +19,9 @@ const MODULOS = [
     { id: 'ASISTENCIA', label: 'Asistencia', roles: ['RESIDENTE', 'ADMIN'] },
     { id: 'PRODUCCION', label: 'Producción Diaria', roles: ['RESIDENTE', 'ADMIN'] },
     { id: 'FINANZAS', label: 'Finanzas y Planillas', roles: ['ADMIN'] },
+    { id: 'CLIENTES', label: 'Clientes', roles: ['ADMIN'] },
+    { id: 'VALORIZACIONES', label: 'Valorizaciones y Facturas', roles: ['ADMIN', 'RESIDENTE'] },
+    { id: 'PAGOS', label: 'Pasarela de Pagos', roles: ['ADMIN'] },
     { id: 'REPORTES', label: 'Reportes Gerenciales', roles: ['ADMIN'] },
     { id: 'USUARIOS', label: 'Usuarios y Roles', roles: ['ADMIN'] }
 ];
@@ -132,6 +135,9 @@ async function seleccionarModulo(id) {
             case 'ASISTENCIA': await renderAsistencia(); break;
             case 'PRODUCCION': await renderProduccion(); break;
             case 'FINANZAS': await renderFinanzas(); break;
+            case 'CLIENTES': await renderClientes(); break;
+            case 'VALORIZACIONES': await renderValorizaciones(); break;
+            case 'PAGOS': await renderPagos(); break;
             case 'REPORTES': await renderReportes(); break;
             case 'USUARIOS': await renderUsuarios(); break;
             default: moduleContainer.innerHTML = '<div class="card">Módulo no disponible.</div>';
@@ -1149,6 +1155,307 @@ async function renderUsuarios() {
             });
             mostrarAlerta('Usuario creado.');
             await renderUsuarios();
+        } catch (err) { mostrarAlerta(err.message, 'error'); }
+    };
+}
+
+function aplicarSoloDigitos(el) {
+    el.addEventListener('input', () => {
+        el.value = el.value.replace(/[^0-9]/g, '');
+    });
+}
+
+async function renderClientes() {
+    const clientes = await api('/api/clientes');
+    let editId = null;
+
+    moduleContainer.innerHTML = `
+        <div class="card">
+            <h3 id="clTitulo">Registrar Cliente / Contratante</h3>
+            <form id="formCliente" class="form-grid">
+                <div class="form-group"><label>Tipo Documento *</label>
+                    <select id="clTipo">
+                        <option value="RUC">RUC (11 dígitos SUNAT)</option>
+                        <option value="DNI">DNI (8 dígitos)</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Número Documento *</label>
+                    <input id="clDoc" maxlength="11" minlength="11" inputmode="numeric" required placeholder="11 dígitos (RUC)">
+                </div>
+                <div class="form-group"><label>Nombre Completo / Razón Social *</label><input id="clNombre" maxlength="150" required></div>
+                <div class="form-group"><label>Teléfono (7–9 dígitos) *</label>
+                    <input id="clTel" maxlength="9" minlength="7" inputmode="numeric" required placeholder="952123456">
+                </div>
+                <div class="form-group"><label>Correo</label><input id="clCorreo" type="email" maxlength="120"></div>
+                <div class="form-group"><label>Dirección</label><input id="clDir" maxlength="200"></div>
+                <div class="form-group" style="display:flex;gap:8px;">
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <button type="button" id="btnClLimpiar" class="btn btn-secondary">Limpiar</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <h3>Clientes Activos</h3>
+            <div class="table-wrap"><table>
+                <thead><tr><th>ID</th><th>Tipo</th><th>Documento</th><th>Nombre / Razón Social</th><th>Teléfono</th><th>Correo</th><th>Acciones</th></tr></thead>
+                <tbody id="tbClientes"></tbody>
+            </table></div>
+        </div>`;
+
+    const clDoc = document.getElementById('clDoc');
+    const clTel = document.getElementById('clTel');
+    const clTipo = document.getElementById('clTipo');
+    aplicarSoloDigitos(clDoc);
+    aplicarSoloDigitos(clTel);
+
+    function ajustarDoc(limpiarValor) {
+        if (limpiarValor) clDoc.value = '';
+        if (clTipo.value === 'DNI') {
+            clDoc.maxLength = 8;
+            clDoc.minLength = 8;
+            clDoc.placeholder = '8 dígitos (DNI)';
+        } else {
+            clDoc.maxLength = 11;
+            clDoc.minLength = 11;
+            clDoc.placeholder = '11 dígitos (RUC SUNAT)';
+        }
+    }
+    clTipo.onchange = () => ajustarDoc(true);
+
+    document.getElementById('tbClientes').innerHTML = clientes.map(c => `
+        <tr>
+            <td>${c.idCliente}</td>
+            <td><span class="badge badge-info">${esc(c.tipoDocumento)}</span></td>
+            <td>${esc(c.numeroDocumento)}</td>
+            <td>${esc(c.nombreRazonSocial)}</td>
+            <td>${esc(c.telefono)}</td>
+            <td>${esc(c.correo || '-')}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm" data-editc="${c.idCliente}">Editar</button>
+                <button class="btn btn-danger btn-sm" data-delc="${c.idCliente}">Eliminar</button>
+            </td>
+        </tr>`).join('');
+
+    document.getElementById('btnClLimpiar').onclick = () => {
+        editId = null;
+        document.getElementById('clTitulo').textContent = 'Registrar Cliente / Contratante';
+        document.getElementById('formCliente').reset();
+        ajustarDoc(true);
+    };
+
+    document.querySelectorAll('[data-editc]').forEach(b => b.onclick = () => {
+        const c = clientes.find(x => x.idCliente == b.dataset.editc);
+        if (!c) return;
+        editId = c.idCliente;
+        document.getElementById('clTitulo').textContent = `Editar Cliente #${editId}`;
+        clTipo.value = c.tipoDocumento;
+        ajustarDoc(false);
+        clDoc.value = c.numeroDocumento;
+        document.getElementById('clNombre').value = c.nombreRazonSocial;
+        clTel.value = c.telefono;
+        document.getElementById('clCorreo').value = c.correo || '';
+        document.getElementById('clDir').value = c.direccion || '';
+    });
+
+    document.querySelectorAll('[data-delc]').forEach(b => b.onclick = async () => {
+        if (!confirm('¿Eliminar cliente?')) return;
+        try {
+            await api(`/api/clientes/${b.dataset.delc}`, { method: 'DELETE' });
+            mostrarAlerta('Cliente eliminado.');
+            await renderClientes();
+        } catch (err) { mostrarAlerta(err.message, 'error'); }
+    });
+
+    document.getElementById('formCliente').onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const payload = {
+                tipoDocumento: clTipo.value,
+                numeroDocumento: clDoc.value.trim(),
+                nombreRazonSocial: document.getElementById('clNombre').value.trim(),
+                telefono: clTel.value.trim(),
+                correo: document.getElementById('clCorreo').value.trim(),
+                direccion: document.getElementById('clDir').value.trim()
+            };
+            if (editId) {
+                await api(`/api/clientes/${editId}`, { method: 'PUT', body: payload });
+                mostrarAlerta('Cliente actualizado.');
+            } else {
+                await api('/api/clientes', { method: 'POST', body: payload });
+                mostrarAlerta('Cliente registrado.');
+            }
+            await renderClientes();
+        } catch (err) { mostrarAlerta(err.message, 'error'); }
+    };
+}
+
+async function renderValorizaciones() {
+    const [obras, valorizaciones, comprobantes] = await Promise.all([
+        api('/api/obras'), api('/api/valorizaciones'), api('/api/valorizaciones/comprobantes')
+    ]);
+    const esAdmin = sesion.rol === 'ADMIN';
+    const pendientes = valorizaciones.filter(v => v.estado === 'PENDIENTE');
+
+    moduleContainer.innerHTML = `
+        <div class="card">
+            <h3>Registrar Valorización de Obra</h3>
+            <form id="formVal" class="form-grid">
+                <div class="form-group"><label>Obra</label>
+                    <select id="valObra">${obras.filter(o => o.operable).map(o => `<option value="${o.idObra}">${esc(o.nombre)}</option>`).join('')}</select>
+                </div>
+                <div class="form-group"><label>Periodo (AAAA-MM) *</label><input id="valPeriodo" placeholder="2026-11" value="${hoyIso().slice(0, 7)}" required></div>
+                <div class="form-group"><label>Fecha Emisión</label><input id="valFecha" type="date" value="${hoyIso()}" required></div>
+                <div class="form-group"><label>% Avance Periodo *</label><input id="valPct" type="number" step="0.01" min="0.01" max="100" required></div>
+                <div class="form-group"><label>Monto Valorizado (S/) *</label><input id="valMonto" type="number" step="0.01" min="0.01" required></div>
+                <div class="form-group"><button type="submit" class="btn btn-primary">Registrar Valorización</button></div>
+            </form>
+        </div>
+        ${esAdmin ? `
+        <div class="card">
+            <h3>Emitir Comprobante de Prueba (IGV 18%)</h3>
+            <form id="formComp" class="form-grid">
+                <div class="form-group"><label>Valorización Pendiente</label>
+                    <select id="cmpVal">${pendientes.map(v => `<option value="${v.idValorizacion}">#${v.idValorizacion} · Obra #${v.idObra} · ${esc(v.periodo)} (S/ ${Number(v.montoValorizado).toFixed(2)})</option>`).join('')}</select>
+                </div>
+                <div class="form-group"><label>Tipo</label>
+                    <select id="cmpTipo"><option value="FACTURA_PRUEBA">Factura de Prueba</option><option value="BOLETA_PRUEBA">Boleta de Prueba</option></select>
+                </div>
+                <div class="form-group"><label>Serie - Correlativo *</label><input id="cmpSerie" placeholder="F001-000001" required></div>
+                <div class="form-group"><button type="submit" class="btn btn-primary">Emitir Comprobante</button></div>
+            </form>
+        </div>` : ''}
+        <div class="card">
+            <h3>Valorizaciones</h3>
+            <div class="table-wrap"><table>
+                <thead><tr><th>ID</th><th>Obra</th><th>Periodo</th><th>Emisión</th><th>% Avance</th><th>Monto (S/)</th><th>Estado</th></tr></thead>
+                <tbody>${valorizaciones.map(v => `<tr>
+                    <td>${v.idValorizacion}</td><td>#${v.idObra}</td><td>${esc(v.periodo)}</td><td>${esc(v.fechaEmision)}</td>
+                    <td>${v.porcentajeAvancePeriodo}%</td><td>S/ ${Number(v.montoValorizado).toFixed(2)}</td>
+                    <td><span class="badge ${v.estado === 'PAGADA' ? 'badge-ok' : v.estado === 'FACTURADA' ? 'badge-info' : 'badge-warn'}">${esc(v.estado)}</span></td>
+                </tr>`).join('')}</tbody>
+            </table></div>
+        </div>
+        <div class="card">
+            <h3>Comprobantes Emitidos</h3>
+            <div class="table-wrap"><table>
+                <thead><tr><th>ID</th><th>Valorización</th><th>Tipo</th><th>Serie-Número</th><th>Subtotal</th><th>IGV (18%)</th><th>Total</th><th>Estado</th></tr></thead>
+                <tbody>${comprobantes.map(c => `<tr>
+                    <td>${c.idComprobante}</td><td>#${c.idValorizacion}</td><td>${esc(c.tipoComprobante)}</td><td><strong>${esc(c.serieNumero)}</strong></td>
+                    <td>S/ ${Number(c.subtotal).toFixed(2)}</td><td>S/ ${Number(c.igv).toFixed(2)}</td><td>S/ ${Number(c.total).toFixed(2)}</td>
+                    <td><span class="badge ${c.estado === 'PAGADO' ? 'badge-ok' : 'badge-info'}">${esc(c.estado)}</span></td>
+                </tr>`).join('')}</tbody>
+            </table></div>
+        </div>`;
+
+    document.getElementById('formVal').onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await api('/api/valorizaciones', {
+                method: 'POST',
+                body: {
+                    idObra: Number(document.getElementById('valObra').value),
+                    periodo: document.getElementById('valPeriodo').value.trim(),
+                    fechaEmision: document.getElementById('valFecha').value,
+                    porcentajeAvancePeriodo: Number(document.getElementById('valPct').value),
+                    montoValorizado: Number(document.getElementById('valMonto').value)
+                }
+            });
+            mostrarAlerta('Valorización registrada.');
+            await renderValorizaciones();
+        } catch (err) { mostrarAlerta(err.message, 'error'); }
+    };
+
+    if (esAdmin) {
+        document.getElementById('formComp').onsubmit = async (e) => {
+            e.preventDefault();
+            const idVal = document.getElementById('cmpVal').value;
+            if (!idVal) { mostrarAlerta('No hay valorizaciones pendientes por facturar.', 'warning'); return; }
+            try {
+                const c = await api(`/api/valorizaciones/${idVal}/comprobante`, {
+                    method: 'POST',
+                    body: {
+                        tipoComprobante: document.getElementById('cmpTipo').value,
+                        serieNumero: document.getElementById('cmpSerie').value.trim()
+                    }
+                });
+                mostrarAlerta(`Comprobante ${c.serieNumero} emitido (Total S/ ${Number(c.total).toFixed(2)}).`);
+                await renderValorizaciones();
+            } catch (err) { mostrarAlerta(err.message, 'error'); }
+        };
+    }
+}
+
+async function renderPagos() {
+    const [obras, valorizaciones, comprobantes, pagos] = await Promise.all([
+        api('/api/obras'), api('/api/valorizaciones'), api('/api/valorizaciones/comprobantes'), api('/api/pagos')
+    ]);
+    const valsNoPagadas = valorizaciones.filter(v => v.estado !== 'PAGADA');
+    const compsEmitidos = comprobantes.filter(c => c.estado === 'EMITIDO');
+
+    moduleContainer.innerHTML = `
+        <div class="card">
+            <h3>Pasarela de Pagos Sandbox (Genera Ingreso Automático en Obra)</h3>
+            <form id="formPago" class="form-grid">
+                <div class="form-group"><label>Obra Destino *</label>
+                    <select id="pgObra">${obras.filter(o => o.operable).map(o => `<option value="${o.idObra}">${esc(o.nombre)}</option>`).join('')}</select>
+                </div>
+                <div class="form-group"><label>Valorización (Opcional)</label>
+                    <select id="pgVal"><option value="">-- Ninguna --</option>${valsNoPagadas.map(v => `<option value="${v.idValorizacion}">#${v.idValorizacion} · Obra #${v.idObra} · ${esc(v.periodo)} (S/ ${Number(v.montoValorizado).toFixed(2)})</option>`).join('')}</select>
+                </div>
+                <div class="form-group"><label>Comprobante (Opcional)</label>
+                    <select id="pgComp"><option value="">-- Ninguno --</option>${compsEmitidos.map(c => `<option value="${c.idComprobante}">#${c.idComprobante} · ${esc(c.serieNumero)} (S/ ${Number(c.total).toFixed(2)})</option>`).join('')}</select>
+                </div>
+                <div class="form-group"><label>Monto (S/) *</label><input id="pgMonto" type="number" step="0.01" min="0.01" required></div>
+                <div class="form-group"><label>Método (Sandbox)</label>
+                    <select id="pgMetodo">
+                        <option value="TARJETA_SIMULADA">Tarjeta Simulada</option>
+                        <option value="TRANSFERENCIA_SIMULADA">Transferencia Simulada</option>
+                        <option value="YAPE_SIMULADO">Yape / Plin Prueba</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Cód. Operación (Opcional)</label><input id="pgCodigo" placeholder="Autogenerado si vacío"></div>
+                <div class="form-group"><button type="submit" class="btn btn-success">Aprobar y Registrar Pago</button></div>
+            </form>
+        </div>
+        <div class="card">
+            <h3>Pagos Procesados</h3>
+            <div class="table-wrap"><table>
+                <thead><tr><th>ID</th><th>Obra</th><th>Valoriz.</th><th>Comprob.</th><th>Ingreso ID</th><th>Método</th><th>Cód. Operación</th><th>Monto (S/)</th><th>Estado</th></tr></thead>
+                <tbody>${pagos.map(p => `<tr>
+                    <td>${p.idPago}</td><td>#${p.idObra}</td><td>${p.idValorizacion ? '#' + p.idValorizacion : '-'}</td>
+                    <td>${p.idComprobante ? '#' + p.idComprobante : '-'}</td><td>#${p.idIngresoGenerado}</td>
+                    <td>${esc(p.metodoPago)}</td><td><strong>${esc(p.codigoOperacion)}</strong></td>
+                    <td>S/ ${Number(p.monto).toFixed(2)}</td><td><span class="badge badge-ok">${esc(p.estado)}</span></td>
+                </tr>`).join('')}</tbody>
+            </table></div>
+        </div>`;
+
+    document.getElementById('pgVal').onchange = (e) => {
+        const v = valsNoPagadas.find(x => x.idValorizacion == e.target.value);
+        if (v) {
+            document.getElementById('pgObra').value = v.idObra;
+            document.getElementById('pgMonto').value = v.montoValorizado;
+        }
+    };
+
+    document.getElementById('formPago').onsubmit = async (e) => {
+        e.preventDefault();
+        const idVal = document.getElementById('pgVal').value;
+        const idComp = document.getElementById('pgComp').value;
+        try {
+            const p = await api('/api/pagos', {
+                method: 'POST',
+                body: {
+                    idObra: Number(document.getElementById('pgObra').value),
+                    idValorizacion: idVal ? Number(idVal) : null,
+                    idComprobante: idComp ? Number(idComp) : null,
+                    monto: Number(document.getElementById('pgMonto').value),
+                    metodoPago: document.getElementById('pgMetodo').value,
+                    codigoOperacion: document.getElementById('pgCodigo').value.trim() || null
+                }
+            });
+            mostrarAlerta(`Pago aprobado (${p.codigoOperacion}). Ingreso automático #${p.idIngresoGenerado} creado.`);
+            await renderPagos();
         } catch (err) { mostrarAlerta(err.message, 'error'); }
     };
 }
