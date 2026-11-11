@@ -2,6 +2,7 @@ package com.sigoc.sigoc_web.application.usecases;
 
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
 import com.sigoc.sigoc_web.domain.models.*;
+import com.sigoc.sigoc_web.domain.ports.in.RegistrarConsumoUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.ConsumoPort;
 import com.sigoc.sigoc_web.domain.ports.out.MaterialPort;
 import com.sigoc.sigoc_web.domain.ports.out.ObraPort;
@@ -17,7 +18,7 @@ import java.time.LocalDate;
  * RF-08: registra un consumo de material en una partida de obra activa, descuenta stock
  * y señala si el stock resultante quedó igual o por debajo del stock mínimo.
  */
-public class RegistrarConsumo {
+public class RegistrarConsumo implements RegistrarConsumoUseCase {
 
     private final ConsumoPort consumoPort;
     private final MaterialPort materialPort;

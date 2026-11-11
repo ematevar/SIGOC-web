@@ -14,5 +14,9 @@ public interface PagoPort {
 
     Optional<Pago> findByCodigoOperacion(String codigoOperacion);
 
+    default Optional<Pago> findByIdCapturaExterna(String idCapturaExterna) {
+        return Optional.empty();
+    }
+
     Pago guardar(Pago pago);
 }

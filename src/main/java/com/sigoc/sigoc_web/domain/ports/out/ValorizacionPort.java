@@ -12,5 +12,9 @@ public interface ValorizacionPort {
 
     Optional<Valorizacion> findById(Integer idValorizacion);
 
+    default Optional<Valorizacion> findByIdParaActualizar(Integer idValorizacion) {
+        return findById(idValorizacion);
+    }
+
     Valorizacion guardar(Valorizacion valorizacion);
 }

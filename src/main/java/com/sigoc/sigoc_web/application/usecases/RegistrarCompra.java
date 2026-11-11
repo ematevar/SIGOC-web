@@ -1,5 +1,7 @@
 package com.sigoc.sigoc_web.application.usecases;
 
+import com.sigoc.sigoc_web.domain.ports.in.RegistrarCompraUseCase;
+
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
 import com.sigoc.sigoc_web.domain.models.*;
 import com.sigoc.sigoc_web.domain.ports.out.*;
@@ -14,7 +16,7 @@ import java.util.*;
 /**
  * RF-07: registra una compra de uno o varios materiales incrementando stock y creando el egreso tipo Material.
  */
-public class RegistrarCompra {
+public class RegistrarCompra implements RegistrarCompraUseCase {
 
     public record ItemCompra(Integer idMaterial, BigDecimal cantidad, BigDecimal precioUnitario) {
     }

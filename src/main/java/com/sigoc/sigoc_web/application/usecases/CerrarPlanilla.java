@@ -1,5 +1,7 @@
 package com.sigoc.sigoc_web.application.usecases;
 
+import com.sigoc.sigoc_web.domain.ports.in.CerrarPlanillaUseCase;
+
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
 import com.sigoc.sigoc_web.domain.models.*;
 import com.sigoc.sigoc_web.domain.ports.out.*;
@@ -16,7 +18,7 @@ import java.util.*;
  * RF-14: cierra e inmoviliza la planilla de una obra en un rango [desde, hasta]
  * sin solapamientos y genera egresos tipo Planilla por cada trabajador con asistencias válidas.
  */
-public class CerrarPlanilla {
+public class CerrarPlanilla implements CerrarPlanillaUseCase {
 
     private final CierrePlanillaPort cierrePort;
     private final ObraPort obraPort;

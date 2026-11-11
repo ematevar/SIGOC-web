@@ -3,6 +3,7 @@ package com.sigoc.sigoc_web.application.usecases;
 import com.sigoc.sigoc_web.domain.exceptions.RecursoNoEncontradoException;
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
 import com.sigoc.sigoc_web.domain.models.*;
+import com.sigoc.sigoc_web.domain.ports.in.RegistrarAvanceUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.AvancePartidaPort;
 import com.sigoc.sigoc_web.domain.ports.out.ObraPort;
 import com.sigoc.sigoc_web.domain.ports.out.PartidaPort;
@@ -18,7 +19,7 @@ import java.util.Optional;
  * RF-05: registra un avance físico de partida (solo Residente de Obra) y devuelve
  * el nuevo avance físico acumulado ponderado de la obra.
  */
-public class RegistrarAvance {
+public class RegistrarAvance implements RegistrarAvanceUseCase {
 
     private static final BigDecimal CIEN = new BigDecimal("100.00");
 

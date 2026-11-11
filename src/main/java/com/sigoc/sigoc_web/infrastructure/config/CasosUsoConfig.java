@@ -1,12 +1,20 @@
 package com.sigoc.sigoc_web.infrastructure.config;
 
 import com.sigoc.sigoc_web.application.usecases.*;
+import com.sigoc.sigoc_web.domain.models.Comprobante;
+import com.sigoc.sigoc_web.domain.models.Pago;
+import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.models.Valorizacion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarValorizacionPagoUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.*;
 import com.sigoc.sigoc_web.domain.services.CaptchaService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.ZoneId;
 
 @Configuration
@@ -328,8 +336,10 @@ public class CasosUsoConfig {
     }
 
     @Bean
-    public RegistrarValorizacion registrarValorizacion(ValorizacionPort valorizacionPort, ObraPort obraPort, Clock clock) {
-        return new RegistrarValorizacion(valorizacionPort, obraPort, clock);
+    public RegistrarValorizacion registrarValorizacion(ValorizacionPort valorizacionPort, ObraPort obraPort,
+                                                       PartidaPort partidaPort, AvancePartidaPort avancePartidaPort,
+                                                       Clock clock) {
+        return new RegistrarValorizacion(valorizacionPort, obraPort, partidaPort, avancePartidaPort, clock);
     }
 
     @Bean
@@ -338,8 +348,22 @@ public class CasosUsoConfig {
     }
 
     @Bean
-    public EmitirComprobante emitirComprobante(ComprobantePort comprobantePort, ValorizacionPort valorizacionPort, Clock clock) {
-        return new EmitirComprobante(comprobantePort, valorizacionPort, clock);
+    public EmitirComprobante emitirComprobante(ComprobantePort comprobantePort, ValorizacionPort valorizacionPort,
+                                               Clock clock,
+                                               @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia) {
+        return new EmitirComprobante(comprobantePort, valorizacionPort, clock, horasVigencia);
+    }
+
+    @Bean
+    public GenerarPdfComprobante generarPdfComprobante(ComprobantePort comprobantePort, ValorizacionPort valorizacionPort,
+                                                       ObraPort obraPort, ClientePort clientePort,
+                                                       ExportadorComprobantePdfPort pdfPort) {
+        return new GenerarPdfComprobante(comprobantePort, valorizacionPort, obraPort, clientePort, pdfPort);
+    }
+
+    @Bean
+    public GestionarTipoCambio gestionarTipoCambio(TipoCambioPort tipoCambioPort, Clock clock) {
+        return new GestionarTipoCambio(tipoCambioPort, clock);
     }
 
     @Bean
@@ -349,7 +373,45 @@ public class CasosUsoConfig {
 
     @Bean
     public ProcesarPago procesarPago(PagoPort pagoPort, ObraPort obraPort, ValorizacionPort valorizacionPort,
-                                     ComprobantePort comprobantePort, IngresoPort ingresoPort, Clock clock) {
-        return new ProcesarPago(pagoPort, obraPort, valorizacionPort, comprobantePort, ingresoPort, clock);
+                                     ComprobantePort comprobantePort, IngresoPort ingresoPort,
+                                     TipoCambioPort tipoCambioPort, PasarelaPagoPort pasarelaPagoPort, Clock clock) {
+        return new ProcesarPago(pagoPort, obraPort, valorizacionPort, comprobantePort, ingresoPort,
+                tipoCambioPort, pasarelaPagoPort, clock);
+    }
+
+    @Bean
+    public ConsultarEnlacePagoPublico consultarEnlacePagoPublico(ComprobantePort comprobantePort,
+                                                                     ValorizacionPort valorizacionPort,
+                                                                     ObraPort obraPort, ClientePort clientePort,
+                                                                     TipoCambioPort tipoCambioPort,
+                                                                     PasarelaPagoPort pasarelaPagoPort, Clock clock) {
+        return new ConsultarEnlacePagoPublico(comprobantePort, valorizacionPort, obraPort, clientePort,
+                tipoCambioPort, pasarelaPagoPort, clock);
+    }
+
+    @Bean
+    public GestionarValorizacionPagoUseCase gestionarValorizacionPagoUseCase(RegistrarValorizacion registrarValorizacion,
+                                                                             EmitirComprobante emitirComprobante,
+                                                                             ProcesarPago procesarPago) {
+        return new GestionarValorizacionPagoUseCase() {
+            @Override
+            public Valorizacion registrarValorizacion(UsuarioSesion actor, Integer idObra,
+                                                      LocalDate periodoInicio, LocalDate periodoFin,
+                                                      LocalDate fechaEmision) {
+                return registrarValorizacion.ejecutar(actor, idObra, periodoInicio, periodoFin, fechaEmision);
+            }
+
+            @Override
+            public Comprobante emitirComprobante(UsuarioSesion actor, Integer idValorizacion,
+                                                 String tipoComprobante, String serieNumero) {
+                return emitirComprobante.ejecutar(actor, idValorizacion, tipoComprobante, serieNumero);
+            }
+
+            @Override
+            public Pago procesarPago(UsuarioSesion actor, Integer idObra, Integer idValorizacion,
+                                     Integer idComprobante, BigDecimal monto, String metodoPago, String codigoOperacion) {
+                return procesarPago.ejecutar(actor, idObra, idValorizacion, idComprobante, monto, metodoPago, codigoOperacion);
+            }
+        };
     }
 }

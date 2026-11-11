@@ -35,6 +35,33 @@ public class PagoEntity extends EntidadAuditable {
     @Column(name = "codigo_operacion", nullable = false, unique = true, length = 50)
     private String codigoOperacion;
 
+    @Column(name = "pasarela", nullable = false, length = 30)
+    private String pasarela = "PASARELA_SIMULADA";
+
+    @Column(name = "id_orden_externa", length = 80)
+    private String idOrdenExterna;
+
+    @Column(name = "id_captura_externa", unique = true, length = 80)
+    private String idCapturaExterna;
+
+    @Column(name = "monto_cobro", precision = 12, scale = 2)
+    private BigDecimal montoCobro;
+
+    @Column(name = "moneda_cobro", nullable = false, length = 3)
+    private String monedaCobro = "PEN";
+
+    @Column(name = "tipo_cambio", precision = 8, scale = 4)
+    private BigDecimal tipoCambio;
+
+    @Column(name = "marca_tarjeta", length = 20)
+    private String marcaTarjeta;
+
+    @Column(name = "ultimos4", length = 4)
+    private String ultimos4;
+
+    @Column(name = "motivo", length = 255)
+    private String motivo;
+
     @Column(name = "fecha_pago", nullable = false)
     private LocalDateTime fechaPago;
 
@@ -66,6 +93,24 @@ public class PagoEntity extends EntidadAuditable {
     public void setMetodoPago(String metodoPago) { this.metodoPago = metodoPago; }
     public String getCodigoOperacion() { return codigoOperacion; }
     public void setCodigoOperacion(String codigoOperacion) { this.codigoOperacion = codigoOperacion; }
+    public String getPasarela() { return pasarela; }
+    public void setPasarela(String pasarela) { this.pasarela = pasarela; }
+    public String getIdOrdenExterna() { return idOrdenExterna; }
+    public void setIdOrdenExterna(String idOrdenExterna) { this.idOrdenExterna = idOrdenExterna; }
+    public String getIdCapturaExterna() { return idCapturaExterna; }
+    public void setIdCapturaExterna(String idCapturaExterna) { this.idCapturaExterna = idCapturaExterna; }
+    public BigDecimal getMontoCobro() { return montoCobro; }
+    public void setMontoCobro(BigDecimal montoCobro) { this.montoCobro = montoCobro; }
+    public String getMonedaCobro() { return monedaCobro; }
+    public void setMonedaCobro(String monedaCobro) { this.monedaCobro = monedaCobro; }
+    public BigDecimal getTipoCambio() { return tipoCambio; }
+    public void setTipoCambio(BigDecimal tipoCambio) { this.tipoCambio = tipoCambio; }
+    public String getMarcaTarjeta() { return marcaTarjeta; }
+    public void setMarcaTarjeta(String marcaTarjeta) { this.marcaTarjeta = marcaTarjeta; }
+    public String getUltimos4() { return ultimos4; }
+    public void setUltimos4(String ultimos4) { this.ultimos4 = ultimos4; }
+    public String getMotivo() { return motivo; }
+    public void setMotivo(String motivo) { this.motivo = motivo; }
     public LocalDateTime getFechaPago() { return fechaPago; }
     public void setFechaPago(LocalDateTime fechaPago) { this.fechaPago = fechaPago; }
     public String getEstado() { return estado; }

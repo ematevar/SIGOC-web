@@ -1,6 +1,7 @@
 package com.sigoc.sigoc_web.infrastructure.controllers;
 
 import com.sigoc.sigoc_web.domain.exceptions.AccesoDenegadoException;
+import com.sigoc.sigoc_web.domain.exceptions.PagoRechazadoException;
 import com.sigoc.sigoc_web.domain.exceptions.RecursoNoEncontradoException;
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
 import com.sigoc.sigoc_web.infrastructure.controllers.dto.ErrorResponse;
@@ -29,6 +30,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ReglaNegocioException.class)
     public ResponseEntity<ErrorResponse> reglaNegocio(ReglaNegocioException ex) {
         return respuesta(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(PagoRechazadoException.class)
+    public ResponseEntity<ErrorResponse> pagoRechazado(PagoRechazadoException ex) {
+        return respuesta(HttpStatus.valueOf(422), ex.getMessage());
     }
 
     @ExceptionHandler(AccesoDenegadoException.class)

@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 public final class ValidadorSigoc {
 
     private static final Pattern SOLO_LETRAS = Pattern.compile("^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$");
-    private static final Pattern SERIE_COMPROBANTE = Pattern.compile("^[FB][0-9]{3}-[0-9]{6,8}$");
+    private static final Pattern SERIE_COMPROBANTE = Pattern.compile("^((CV[0-9]{2})|([FB][0-9]{3}))-[0-9]{6,8}$");
     private static final Pattern PERIODO_ANIO_MES = Pattern.compile("^[0-9]{4}-(0[1-9]|1[0-2])$");
 
     private ValidadorSigoc() {

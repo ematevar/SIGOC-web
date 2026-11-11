@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.Optional;
 
@@ -52,6 +53,12 @@ public class WebViewController {
         model.addAttribute("requiereCambioClave", usuario.requiereCambioClave());
         model.addAttribute("csrfToken", SesionHttp.obtenerOCrearCsrfToken(request));
         return "index";
+    }
+
+    @GetMapping("/pago/{codigoPago}")
+    public String portalPagoPublico(@PathVariable String codigoPago, Model model) {
+        model.addAttribute("codigoPago", codigoPago);
+        return "pago-publico";
     }
 
     private UsuarioSesion sesionValida(HttpServletRequest request) {

@@ -1,5 +1,7 @@
 package com.sigoc.sigoc_web.application.usecases;
 
+import com.sigoc.sigoc_web.domain.ports.in.RegistrarAsistenciaUseCase;
+
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
 import com.sigoc.sigoc_web.domain.models.*;
 import com.sigoc.sigoc_web.domain.ports.out.AsistenciaPort;
@@ -16,7 +18,7 @@ import java.time.LocalTime;
  * limpiando horas en FALTA/PERMISO, validando salida posterior a entrada, evitando duplicados
  * y bloqueando registros dentro de periodos de planilla cerrados.
  */
-public class RegistrarAsistencia {
+public class RegistrarAsistencia implements RegistrarAsistenciaUseCase {
 
     private final AsistenciaPort asistenciaPort;
     private final EmpleadoPort empleadoPort;

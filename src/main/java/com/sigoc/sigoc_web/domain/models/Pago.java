@@ -12,6 +12,15 @@ public class Pago {
     private BigDecimal monto;
     private String metodoPago;
     private String codigoOperacion;
+    private String pasarela = "PASARELA_SIMULADA";
+    private String idOrdenExterna;
+    private String idCapturaExterna;
+    private BigDecimal montoCobro;
+    private String monedaCobro = "PEN";
+    private BigDecimal tipoCambio;
+    private String marcaTarjeta;
+    private String ultimos4;
+    private String motivo;
     private LocalDateTime fechaPago;
     private String estado;
     private boolean activo;
@@ -23,6 +32,16 @@ public class Pago {
     public Pago(Integer idPago, Integer idObra, Integer idValorizacion, Integer idComprobante,
                 Integer idIngresoGenerado, BigDecimal monto, String metodoPago, String codigoOperacion,
                 LocalDateTime fechaPago, String estado, boolean activo, LocalDateTime fechaBorrado) {
+        this(idPago, idObra, idValorizacion, idComprobante, idIngresoGenerado, monto, metodoPago,
+                codigoOperacion, "PASARELA_SIMULADA", null, null, monto, "PEN", null, null, null, null,
+                fechaPago, estado, activo, fechaBorrado);
+    }
+
+    public Pago(Integer idPago, Integer idObra, Integer idValorizacion, Integer idComprobante,
+                Integer idIngresoGenerado, BigDecimal monto, String metodoPago, String codigoOperacion,
+                String pasarela, String idOrdenExterna, String idCapturaExterna, BigDecimal montoCobro,
+                String monedaCobro, BigDecimal tipoCambio, String marcaTarjeta, String ultimos4,
+                String motivo, LocalDateTime fechaPago, String estado, boolean activo, LocalDateTime fechaBorrado) {
         this.idPago = idPago;
         this.idObra = idObra;
         this.idValorizacion = idValorizacion;
@@ -31,6 +50,15 @@ public class Pago {
         this.monto = monto;
         this.metodoPago = metodoPago;
         this.codigoOperacion = codigoOperacion;
+        this.pasarela = pasarela != null ? pasarela : "PASARELA_SIMULADA";
+        this.idOrdenExterna = idOrdenExterna;
+        this.idCapturaExterna = idCapturaExterna;
+        this.montoCobro = montoCobro;
+        this.monedaCobro = monedaCobro != null ? monedaCobro : "PEN";
+        this.tipoCambio = tipoCambio;
+        this.marcaTarjeta = marcaTarjeta;
+        this.ultimos4 = ultimos4;
+        this.motivo = motivo;
         this.fechaPago = fechaPago;
         this.estado = estado;
         this.activo = activo;
@@ -53,6 +81,24 @@ public class Pago {
     public void setMetodoPago(String metodoPago) { this.metodoPago = metodoPago; }
     public String getCodigoOperacion() { return codigoOperacion; }
     public void setCodigoOperacion(String codigoOperacion) { this.codigoOperacion = codigoOperacion; }
+    public String getPasarela() { return pasarela; }
+    public void setPasarela(String pasarela) { this.pasarela = pasarela; }
+    public String getIdOrdenExterna() { return idOrdenExterna; }
+    public void setIdOrdenExterna(String idOrdenExterna) { this.idOrdenExterna = idOrdenExterna; }
+    public String getIdCapturaExterna() { return idCapturaExterna; }
+    public void setIdCapturaExterna(String idCapturaExterna) { this.idCapturaExterna = idCapturaExterna; }
+    public BigDecimal getMontoCobro() { return montoCobro; }
+    public void setMontoCobro(BigDecimal montoCobro) { this.montoCobro = montoCobro; }
+    public String getMonedaCobro() { return monedaCobro; }
+    public void setMonedaCobro(String monedaCobro) { this.monedaCobro = monedaCobro; }
+    public BigDecimal getTipoCambio() { return tipoCambio; }
+    public void setTipoCambio(BigDecimal tipoCambio) { this.tipoCambio = tipoCambio; }
+    public String getMarcaTarjeta() { return marcaTarjeta; }
+    public void setMarcaTarjeta(String marcaTarjeta) { this.marcaTarjeta = marcaTarjeta; }
+    public String getUltimos4() { return ultimos4; }
+    public void setUltimos4(String ultimos4) { this.ultimos4 = ultimos4; }
+    public String getMotivo() { return motivo; }
+    public void setMotivo(String motivo) { this.motivo = motivo; }
     public LocalDateTime getFechaPago() { return fechaPago; }
     public void setFechaPago(LocalDateTime fechaPago) { this.fechaPago = fechaPago; }
     public String getEstado() { return estado; }

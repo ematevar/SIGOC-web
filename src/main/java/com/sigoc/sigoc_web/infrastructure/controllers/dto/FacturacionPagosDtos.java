@@ -1,5 +1,6 @@
 package com.sigoc.sigoc_web.infrastructure.controllers.dto;
 
+import com.sigoc.sigoc_web.application.usecases.RegistrarValorizacion.ResumenCalculoValorizacion;
 import com.sigoc.sigoc_web.domain.models.Cliente;
 import com.sigoc.sigoc_web.domain.models.Comprobante;
 import com.sigoc.sigoc_web.domain.models.Pago;
@@ -43,31 +44,60 @@ public final class FacturacionPagosDtos {
 
     public record RegistrarValorizacionRequest(
             @NotNull Integer idObra,
-            @NotBlank String periodo,
-            LocalDate fechaEmision,
-            @NotNull @DecimalMin("0.01") BigDecimal porcentajeAvancePeriodo,
-            @NotNull @DecimalMin("0.01") BigDecimal montoValorizado
+            @NotNull LocalDate periodoInicio,
+            @NotNull LocalDate periodoFin,
+            LocalDate fechaEmision
     ) {
+    }
+
+    public record CalculoValorizacionResponse(
+            Integer idObra,
+            String nombreObra,
+            int numeroSiguiente,
+            LocalDate periodoInicio,
+            LocalDate periodoFin,
+            BigDecimal avanceAcumulado,
+            BigDecimal avanceYaValorizado,
+            BigDecimal porcentajeAvancePeriodo,
+            BigDecimal subtotal,
+            BigDecimal igv,
+            BigDecimal total
+    ) {
+        public static CalculoValorizacionResponse de(ResumenCalculoValorizacion r) {
+            return new CalculoValorizacionResponse(r.idObra(), r.nombreObra(), r.numeroSiguiente(),
+                    r.periodoInicio(), r.periodoFin(), r.avanceAcumulado(), r.avanceYaValorizado(),
+                    r.porcentajeAvancePeriodo(), r.subtotal(), r.igv(), r.total());
+        }
     }
 
     public record ValorizacionResponse(
             Integer idValorizacion,
             Integer idObra,
+            Integer numero,
             String periodo,
+            LocalDate periodoInicio,
+            LocalDate periodoFin,
             LocalDate fechaEmision,
+            BigDecimal avanceAcumulado,
             BigDecimal porcentajeAvancePeriodo,
+            BigDecimal subtotal,
+            BigDecimal igv,
+            BigDecimal total,
             BigDecimal montoValorizado,
             String estado
     ) {
         public static ValorizacionResponse de(Valorizacion v) {
-            return new ValorizacionResponse(v.getIdValorizacion(), v.getIdObra(), v.getPeriodo(),
-                    v.getFechaEmision(), v.getPorcentajeAvancePeriodo(), v.getMontoValorizado(), v.getEstado());
+            return new ValorizacionResponse(
+                    v.getIdValorizacion(), v.getIdObra(), v.getNumero(), v.getPeriodo(),
+                    v.getPeriodoInicio(), v.getPeriodoFin(), v.getFechaEmision(),
+                    v.getAvanceAcumulado(), v.getPorcentajeAvancePeriodo(),
+                    v.getSubtotal(), v.getIgv(), v.getTotal(), v.getMontoValorizado(), v.getEstado());
         }
     }
 
     public record EmitirComprobanteRequest(
             String tipoComprobante,
-            @NotBlank String serieNumero
+            String serieNumero
     ) {
     }
 
@@ -75,16 +105,23 @@ public final class FacturacionPagosDtos {
             Integer idComprobante,
             Integer idValorizacion,
             String tipoComprobante,
+            String serie,
+            Integer numero,
             String serieNumero,
             LocalDate fechaEmision,
             BigDecimal subtotal,
             BigDecimal igv,
             BigDecimal total,
+            String codigoPago,
+            LocalDateTime venceEl,
             String estado
     ) {
         public static ComprobanteResponse de(Comprobante c) {
-            return new ComprobanteResponse(c.getIdComprobante(), c.getIdValorizacion(), c.getTipoComprobante(),
-                    c.getSerieNumero(), c.getFechaEmision(), c.getSubtotal(), c.getIgv(), c.getTotal(), c.getEstado());
+            return new ComprobanteResponse(
+                    c.getIdComprobante(), c.getIdValorizacion(), c.getTipoComprobante(),
+                    c.getSerie(), c.getNumero(), c.getSerieNumero(), c.getFechaEmision(),
+                    c.getSubtotal(), c.getIgv(), c.getTotal(), c.getCodigoPago(),
+                    c.getVenceEl(), c.getEstado());
         }
     }
 
@@ -107,12 +144,25 @@ public final class FacturacionPagosDtos {
             BigDecimal monto,
             String metodoPago,
             String codigoOperacion,
+            String pasarela,
+            String idOrdenExterna,
+            String idCapturaExterna,
+            BigDecimal montoCobro,
+            String monedaCobro,
+            BigDecimal tipoCambio,
+            String marcaTarjeta,
+            String ultimos4,
+            String motivo,
             LocalDateTime fechaPago,
             String estado
     ) {
         public static PagoResponse de(Pago p) {
-            return new PagoResponse(p.getIdPago(), p.getIdObra(), p.getIdValorizacion(), p.getIdComprobante(),
+            return new PagoResponse(
+                    p.getIdPago(), p.getIdObra(), p.getIdValorizacion(), p.getIdComprobante(),
                     p.getIdIngresoGenerado(), p.getMonto(), p.getMetodoPago(), p.getCodigoOperacion(),
+                    p.getPasarela(), p.getIdOrdenExterna(), p.getIdCapturaExterna(),
+                    p.getMontoCobro(), p.getMonedaCobro(), p.getTipoCambio(),
+                    p.getMarcaTarjeta(), p.getUltimos4(), p.getMotivo(),
                     p.getFechaPago(), p.getEstado());
         }
     }

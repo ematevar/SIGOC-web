@@ -18,6 +18,9 @@ public class IngresoEntity extends EntidadAuditable {
     @Column(name = "id_obra", nullable = false)
     private Integer idObra;
 
+    @Column(name = "id_pago", unique = true)
+    private Integer idPago;
+
     @Column(name = "fecha", nullable = false)
     private LocalDate fecha;
 
@@ -40,6 +43,8 @@ public class IngresoEntity extends EntidadAuditable {
     public void setIdIngreso(Integer idIngreso) { this.idIngreso = idIngreso; }
     public Integer getIdObra() { return idObra; }
     public void setIdObra(Integer idObra) { this.idObra = idObra; }
+    public Integer getIdPago() { return idPago; }
+    public void setIdPago(Integer idPago) { this.idPago = idPago; }
     public LocalDate getFecha() { return fecha; }
     public void setFecha(LocalDate fecha) { this.fecha = fecha; }
     public String getConcepto() { return concepto; }

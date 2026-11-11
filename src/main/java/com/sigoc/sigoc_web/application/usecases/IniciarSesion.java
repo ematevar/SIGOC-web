@@ -4,6 +4,7 @@ import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
 import com.sigoc.sigoc_web.domain.models.RolSistema;
 import com.sigoc.sigoc_web.domain.models.Usuario;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.AutenticarUsuarioUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.IntentosLoginPort;
 import com.sigoc.sigoc_web.domain.ports.out.PasswordHasherPort;
 import com.sigoc.sigoc_web.domain.ports.out.UsuarioPort;
@@ -17,7 +18,7 @@ import java.util.Optional;
 /**
  * RF-01: inicio de sesión con captcha y bloqueo temporal tras intentos fallidos.
  */
-public class IniciarSesion {
+public class IniciarSesion implements AutenticarUsuarioUseCase {
 
     public static final int MAX_INTENTOS_FALLIDOS = 5;
     public static final Duration BLOQUEO = Duration.ofSeconds(30);

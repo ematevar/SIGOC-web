@@ -15,4 +15,6 @@ public interface PagoJpaRepository extends JpaRepository<PagoEntity, Integer> {
     List<PagoEntity> findByIdObraAndActivoTrueOrderByIdPagoDesc(Integer idObra);
 
     Optional<PagoEntity> findByCodigoOperacion(String codigoOperacion);
+
+    Optional<PagoEntity> findByIdCapturaExterna(String idCapturaExterna);
 }

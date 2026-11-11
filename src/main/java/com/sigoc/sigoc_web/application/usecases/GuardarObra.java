@@ -6,6 +6,7 @@ import com.sigoc.sigoc_web.domain.models.Cliente;
 import com.sigoc.sigoc_web.domain.models.Obra;
 import com.sigoc.sigoc_web.domain.models.RolSistema;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarObraUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.ClientePort;
 import com.sigoc.sigoc_web.domain.ports.out.ObraPort;
 import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
@@ -19,7 +20,7 @@ import java.util.Set;
  * RF-03: crea o actualiza una obra civil validando presupuesto positivo, coherencia de fechas,
  * vínculo opcional con cliente activo e inmutabilidad de obras finalizadas (C09).
  */
-public class GuardarObra {
+public class GuardarObra implements GestionarObraUseCase {
 
     private static final Set<String> ESTADOS_VALIDOS = Set.of(
             "Planificada", "En Ejecución", "Suspendida", "Finalizada");

@@ -44,6 +44,12 @@ public class PagoJpaAdapter implements PagoPort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<Pago> findByIdCapturaExterna(String idCapturaExterna) {
+        return repository.findByIdCapturaExterna(idCapturaExterna).map(this::toModel);
+    }
+
+    @Override
     @Transactional
     public Pago guardar(Pago pago) {
         PagoEntity entity = pago.getIdPago() != null
@@ -56,6 +62,15 @@ public class PagoJpaAdapter implements PagoPort {
         entity.setMonto(pago.getMonto());
         entity.setMetodoPago(pago.getMetodoPago());
         entity.setCodigoOperacion(pago.getCodigoOperacion());
+        entity.setPasarela(pago.getPasarela() != null ? pago.getPasarela() : "PASARELA_SIMULADA");
+        entity.setIdOrdenExterna(pago.getIdOrdenExterna());
+        entity.setIdCapturaExterna(pago.getIdCapturaExterna());
+        entity.setMontoCobro(pago.getMontoCobro());
+        entity.setMonedaCobro(pago.getMonedaCobro() != null ? pago.getMonedaCobro() : "PEN");
+        entity.setTipoCambio(pago.getTipoCambio());
+        entity.setMarcaTarjeta(pago.getMarcaTarjeta());
+        entity.setUltimos4(pago.getUltimos4());
+        entity.setMotivo(pago.getMotivo());
         entity.setFechaPago(pago.getFechaPago());
         entity.setEstado(pago.getEstado());
         entity.setActivo(pago.isActivo());
@@ -73,6 +88,15 @@ public class PagoJpaAdapter implements PagoPort {
                 e.getMonto(),
                 e.getMetodoPago(),
                 e.getCodigoOperacion(),
+                e.getPasarela(),
+                e.getIdOrdenExterna(),
+                e.getIdCapturaExterna(),
+                e.getMontoCobro(),
+                e.getMonedaCobro(),
+                e.getTipoCambio(),
+                e.getMarcaTarjeta(),
+                e.getUltimos4(),
+                e.getMotivo(),
                 e.getFechaPago(),
                 e.getEstado(),
                 e.isActivo(),

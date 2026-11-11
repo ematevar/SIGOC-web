@@ -5,6 +5,7 @@ import com.sigoc.sigoc_web.domain.models.Reporte;
 import com.sigoc.sigoc_web.domain.models.RolSistema;
 import com.sigoc.sigoc_web.domain.models.TipoReporte;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.GenerarReporteUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.ReporteQueryPort;
 import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
 
@@ -13,7 +14,7 @@ import java.time.LocalDate;
 /**
  * RF-16: genera uno de los 4 reportes gerenciales (Curva S, Consumo, Personal, Financiero).
  */
-public class GenerarReporte {
+public class GenerarReporte implements GenerarReporteUseCase {
 
     private final ReporteQueryPort reporteQueryPort;
 

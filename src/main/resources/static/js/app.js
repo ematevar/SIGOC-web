@@ -1485,78 +1485,89 @@ async function renderValorizaciones() {
         api('/api/obras'), api('/api/valorizaciones'), api('/api/valorizaciones/comprobantes')
     ]);
     const esAdmin = sesion.rol === 'ADMIN' || sesion.rol === 'CONTADOR';
+    const puedeValorizar = esAdmin || sesion.rol === 'RESIDENTE';
     const pendientes = valorizaciones.filter(v => v.estado === 'PENDIENTE');
+    const inicioMes = hoyIso().slice(0, 7) + '-01';
 
     moduleContainer.innerHTML = `
+        ${puedeValorizar ? `
         <div class="card">
-            <h3>Registrar Valorización de Obra</h3>
+            <h3>Registrar Valorización Automática de Obra (RN-20..RN-22)</h3>
             <form id="formVal" class="form-grid">
-                <div class="form-group"><label>Obra</label>
+                <div class="form-group"><label>Obra *</label>
                     <select id="valObra">${obras.filter(o => o.operable).map(o => `<option value="${o.idObra}">${esc(o.nombre)}</option>`).join('')}</select>
                 </div>
-                <div class="form-group"><label>Periodo (AAAA-MM) *</label><input id="valPeriodo" placeholder="2026-11" value="${hoyIso().slice(0, 7)}" required></div>
+                <div class="form-group"><label>Periodo Inicio *</label><input id="valIni" type="date" value="${inicioMes}" required></div>
+                <div class="form-group"><label>Periodo Fin *</label><input id="valFin" type="date" value="${hoyIso()}" required></div>
                 <div class="form-group"><label>Fecha Emisión</label><input id="valFecha" type="date" value="${hoyIso()}" required></div>
-                <div class="form-group"><label>% Avance Periodo *</label><input id="valPct" type="number" step="0.01" min="0.01" max="100" required></div>
-                <div class="form-group"><label>Monto Valorizado (S/) *</label><input id="valMonto" type="number" step="0.01" min="0.01" required></div>
-                <div class="form-group"><button type="submit" class="btn btn-primary">Registrar Valorización</button></div>
+                <div class="form-group" style="display:flex; gap:8px; align-items:flex-end;">
+                    <button type="button" id="btnValPreview" class="btn btn-secondary">Previsualizar Cálculo</button>
+                    <button type="submit" class="btn btn-primary">Registrar Valorización</button>
+                </div>
             </form>
-        </div>
+            <div id="valPreviewBox" class="hidden" style="margin-top:12px; padding:12px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px;"></div>
+        </div>` : ''}
         ${esAdmin ? `
         <div class="card">
-            <h3>Emitir Comprobante de Prueba (IGV 18%)</h3>
+            <h3>Emitir Comprobante Interno de Valorización (CV01 · IGV 18% · Enlace 72h)</h3>
             <form id="formComp" class="form-grid">
                 <div class="form-group"><label>Valorización Pendiente</label>
-                    <select id="cmpVal">${pendientes.map(v => `<option value="${v.idValorizacion}">#${v.idValorizacion} · Obra #${v.idObra} · ${esc(v.periodo)} (S/ ${Number(v.montoValorizado).toFixed(2)})</option>`).join('')}</select>
+                    <select id="cmpVal">${pendientes.map(v => `<option value="${v.idValorizacion}">N° ${v.numero || 1} · Obra #${v.idObra} · ${esc(v.periodo)} (S/ ${Number(v.montoValorizado).toFixed(2)})</option>`).join('')}</select>
                 </div>
-                <div class="form-group"><label>Tipo</label>
-                    <select id="cmpTipo"><option value="FACTURA_PRUEBA">Factura de Prueba</option><option value="BOLETA_PRUEBA">Boleta de Prueba</option></select>
-                </div>
-                <div class="form-group"><label>Serie - Correlativo *</label><input id="cmpSerie" placeholder="F001-000001" required></div>
-                <div class="form-group"><button type="submit" class="btn btn-primary">Emitir Comprobante</button></div>
+                <div class="form-group"><label>Serie - Correlativo (Opcional)</label><input id="cmpSerie" placeholder="Autogenerado CV01-XXXXXX si vacío"></div>
+                <div class="form-group"><button type="submit" class="btn btn-primary">Emitir Comprobante CV01</button></div>
             </form>
         </div>` : ''}
         <div class="card">
-            <h3>Valorizaciones</h3>
+            <h3>Valorizaciones Registradas</h3>
             <div class="table-wrap"><table>
-                <thead><tr><th>ID</th><th>Obra</th><th>Periodo</th><th>Emisión</th><th>% Avance</th><th>Monto (S/)</th><th>Estado</th></tr></thead>
+                <thead><tr><th>N°</th><th>Obra</th><th>Periodo</th><th>Emisión</th><th>% Periodo (Acum.)</th><th>Subtotal</th><th>IGV</th><th>Total (S/)</th><th>Estado</th></tr></thead>
                 <tbody>${valorizaciones.map(v => `<tr>
-                    <td>${v.idValorizacion}</td><td>#${v.idObra}</td><td>${esc(v.periodo)}</td><td>${esc(v.fechaEmision)}</td>
-                    <td>${v.porcentajeAvancePeriodo}%</td><td>S/ ${Number(v.montoValorizado).toFixed(2)}</td>
+                    <td>#${v.numero || v.idValorizacion}</td><td>#${v.idObra}</td><td>${esc(v.periodo)}</td><td>${esc(v.fechaEmision)}</td>
+                    <td>${Number(v.porcentajeAvancePeriodo).toFixed(2)}% (${Number(v.avanceAcumulado || 0).toFixed(2)}%)</td>
+                    <td>S/ ${Number(v.subtotal || 0).toFixed(2)}</td><td>S/ ${Number(v.igv || 0).toFixed(2)}</td>
+                    <td><strong>S/ ${Number(v.montoValorizado).toFixed(2)}</strong></td>
                     <td><span class="badge ${v.estado === 'PAGADA' ? 'badge-ok' : v.estado === 'FACTURADA' ? 'badge-info' : 'badge-warn'}">${esc(v.estado)}</span></td>
                 </tr>`).join('')}</tbody>
             </table></div>
         </div>
         <div class="card">
-            <h3>Comprobantes Emitidos</h3>
+            <h3>Comprobantes Internos CV01 y Enlaces de Pago (72h)</h3>
             <div class="table-wrap"><table>
-                <thead><tr><th>ID</th><th>Valorización</th><th>Tipo</th><th>Serie-Número</th><th>Subtotal</th><th>IGV (18%)</th><th>Total</th><th>Estado</th></tr></thead>
+                <thead><tr><th>Serie-Número</th><th>Valorización</th><th>Emisión</th><th>Subtotal</th><th>IGV</th><th>Total</th><th>Vigencia Enlace</th><th>Estado</th><th>Acciones</th></tr></thead>
                 <tbody>${comprobantes.map(c => `<tr>
-                    <td>${c.idComprobante}</td><td>#${c.idValorizacion}</td><td>${esc(c.tipoComprobante)}</td><td><strong>${esc(c.serieNumero)}</strong></td>
+                    <td><strong>${esc(c.serieNumero)}</strong></td><td>#${c.idValorizacion}</td><td>${esc(c.fechaEmision)}</td>
                     <td>S/ ${Number(c.subtotal).toFixed(2)}</td><td>S/ ${Number(c.igv).toFixed(2)}</td><td>S/ ${Number(c.total).toFixed(2)}</td>
+                    <td>${c.venceEl ? esc(String(c.venceEl).replace('T', ' ').slice(0, 16)) : '-'}</td>
                     <td><span class="badge ${c.estado === 'PAGADO' ? 'badge-ok' : 'badge-info'}">${esc(c.estado)}</span></td>
+                    <td style="white-space:nowrap;">
+                        <a class="btn btn-secondary btn-sm" href="/api/valorizaciones/comprobantes/${c.idComprobante}/pdf" target="_blank">PDF</a>
+                        ${c.codigoPago ? `<button type="button" class="btn btn-secondary btn-sm" data-copylink="${esc(c.codigoPago)}">Copiar Link</button>` : ''}
+                        ${esAdmin && c.estado === 'EMITIDO' ? `<button type="button" class="btn btn-primary btn-sm" data-renlink="${c.idComprobante}">Renovar 72h</button>` : ''}
+                    </td>
                 </tr>`).join('')}</tbody>
             </table></div>
         </div>`;
 
-    document.getElementById('formVal').onsubmit = async (e) => {
-        e.preventDefault();
+    document.querySelectorAll('[data-copylink]').forEach(b => b.onclick = async () => {
+        const url = `${window.location.origin}/pago/${b.dataset.copylink}`;
         try {
-            await api('/api/valorizaciones', {
-                method: 'POST',
-                body: {
-                    idObra: Number(document.getElementById('valObra').value),
-                    periodo: document.getElementById('valPeriodo').value.trim(),
-                    fechaEmision: document.getElementById('valFecha').value,
-                    porcentajeAvancePeriodo: Number(document.getElementById('valPct').value),
-                    montoValorizado: Number(document.getElementById('valMonto').value)
-                }
-            });
-            mostrarAlerta('Valorización registrada.');
-            await renderValorizaciones();
-        } catch (err) { mostrarAlerta(err.message, 'error'); }
-    };
+            await navigator.clipboard.writeText(url);
+            mostrarAlerta(`Enlace público copiado: ${url}`);
+        } catch {
+            window.prompt('Copia el enlace público de pago (72h):', url);
+        }
+    });
 
     if (esAdmin) {
+        document.querySelectorAll('[data-renlink]').forEach(b => b.onclick = async () => {
+            try {
+                await api(`/api/valorizaciones/comprobantes/${b.dataset.renlink}/renovar-enlace`, { method: 'POST' });
+                mostrarAlerta('Enlace de pago renovado por 72 horas adicionales.');
+                await renderValorizaciones();
+            } catch (err) { mostrarAlerta(err.message, 'error'); }
+        });
+
         document.getElementById('formComp').onsubmit = async (e) => {
             e.preventDefault();
             const idVal = document.getElementById('cmpVal').value;
@@ -1565,8 +1576,8 @@ async function renderValorizaciones() {
                 const c = await api(`/api/valorizaciones/${idVal}/comprobante`, {
                     method: 'POST',
                     body: {
-                        tipoComprobante: document.getElementById('cmpTipo').value,
-                        serieNumero: document.getElementById('cmpSerie').value.trim()
+                        tipoComprobante: 'COMPROBANTE_VALORIZACION',
+                        serieNumero: document.getElementById('cmpSerie').value.trim() || null
                     }
                 });
                 mostrarAlerta(`Comprobante ${c.serieNumero} emitido (Total S/ ${Number(c.total).toFixed(2)}).`);
@@ -1574,34 +1585,86 @@ async function renderValorizaciones() {
             } catch (err) { mostrarAlerta(err.message, 'error'); }
         };
     }
+
+    if (!puedeValorizar) return;
+
+    document.getElementById('btnValPreview').onclick = async () => {
+        const box = document.getElementById('valPreviewBox');
+        try {
+            const p = await api(`/api/valorizaciones/preview?idObra=${document.getElementById('valObra').value}&periodoInicio=${document.getElementById('valIni').value}&periodoFin=${document.getElementById('valFin').value}`);
+            box.innerHTML = `
+                <strong>Vista previa — Valorización N° ${p.numeroSiguiente} (${esc(p.nombreObra)})</strong><br>
+                Avance físico acumulado a la fecha fin: <strong>${Number(p.avanceAcumulado).toFixed(2)}%</strong> ·
+                Ya valorizado: <strong>${Number(p.avanceYaValorizado).toFixed(2)}%</strong> ·
+                <strong>Avance del periodo: ${Number(p.porcentajeAvancePeriodo).toFixed(2)}%</strong><br>
+                Subtotal: S/ ${Number(p.subtotal).toFixed(2)} · IGV (18%): S/ ${Number(p.igv).toFixed(2)} ·
+                <strong>Total: S/ ${Number(p.total).toFixed(2)}</strong>`;
+            box.classList.remove('hidden');
+        } catch (err) {
+            box.classList.add('hidden');
+            mostrarAlerta(err.message, 'error');
+        }
+    };
+
+    document.getElementById('formVal').onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await api('/api/valorizaciones', {
+                method: 'POST',
+                body: {
+                    idObra: Number(document.getElementById('valObra').value),
+                    periodoInicio: document.getElementById('valIni').value,
+                    periodoFin: document.getElementById('valFin').value,
+                    fechaEmision: document.getElementById('valFecha').value
+                }
+            });
+            mostrarAlerta('Valorización automática registrada.');
+            await renderValorizaciones();
+        } catch (err) { mostrarAlerta(err.message, 'error'); }
+    };
 }
 
 async function renderPagos() {
-    const [obras, valorizaciones, comprobantes, pagos] = await Promise.all([
-        api('/api/obras'), api('/api/valorizaciones'), api('/api/valorizaciones/comprobantes'), api('/api/pagos')
+    const [obras, valorizaciones, comprobantes, pagos, tipoCambio] = await Promise.all([
+        api('/api/obras'), api('/api/valorizaciones'), api('/api/valorizaciones/comprobantes'),
+        api('/api/pagos'), api('/api/tipo-cambio')
     ]);
     const valsNoPagadas = valorizaciones.filter(v => v.estado !== 'PAGADA');
     const compsEmitidos = comprobantes.filter(c => c.estado === 'EMITIDO');
+    const esFinanzas = sesion.rol === 'ADMIN' || sesion.rol === 'CONTADOR';
 
     moduleContainer.innerHTML = `
         <div class="card">
-            <h3>Pasarela de Pagos Sandbox (Genera Ingreso Automático en Obra)</h3>
+            <h3>Tipo de Cambio Referencial USD → PEN (PayPal Sandbox)</h3>
+            <form id="formTc" class="form-grid">
+                <div class="form-group"><label>Par de Moneda</label><input value="USD → PEN" disabled></div>
+                <div class="form-group"><label>Valor (S/ por 1 USD) *</label>
+                    <input id="tcValor" type="number" step="0.0001" min="0.1" value="${Number(tipoCambio.valor || 3.75).toFixed(4)}" ${esFinanzas ? '' : 'disabled'} required>
+                </div>
+                <div class="form-group"><label>Última actualización</label>
+                    <input value="${tipoCambio.fechaActualizacion ? esc(String(tipoCambio.fechaActualizacion).replace('T', ' ').slice(0, 16)) : '-'}" disabled>
+                </div>
+                ${esFinanzas ? `<div class="form-group"><button type="submit" class="btn btn-secondary">Actualizar Tipo de Cambio</button></div>` : ''}
+            </form>
+        </div>
+        <div class="card">
+            <h3>Registro / Conciliación Interna de Pagos (Genera Ingreso Automático)</h3>
             <form id="formPago" class="form-grid">
                 <div class="form-group"><label>Obra Destino *</label>
                     <select id="pgObra">${obras.filter(o => o.operable).map(o => `<option value="${o.idObra}">${esc(o.nombre)}</option>`).join('')}</select>
                 </div>
                 <div class="form-group"><label>Valorización (Opcional)</label>
-                    <select id="pgVal"><option value="">-- Ninguna --</option>${valsNoPagadas.map(v => `<option value="${v.idValorizacion}">#${v.idValorizacion} · Obra #${v.idObra} · ${esc(v.periodo)} (S/ ${Number(v.montoValorizado).toFixed(2)})</option>`).join('')}</select>
+                    <select id="pgVal"><option value="">-- Ninguna --</option>${valsNoPagadas.map(v => `<option value="${v.idValorizacion}">N° ${v.numero || v.idValorizacion} · Obra #${v.idObra} · ${esc(v.periodo)} (S/ ${Number(v.montoValorizado).toFixed(2)})</option>`).join('')}</select>
                 </div>
-                <div class="form-group"><label>Comprobante (Opcional)</label>
+                <div class="form-group"><label>Comprobante CV01 (Opcional)</label>
                     <select id="pgComp"><option value="">-- Ninguno --</option>${compsEmitidos.map(c => `<option value="${c.idComprobante}">#${c.idComprobante} · ${esc(c.serieNumero)} (S/ ${Number(c.total).toFixed(2)})</option>`).join('')}</select>
                 </div>
                 <div class="form-group"><label>Monto (S/) *</label><input id="pgMonto" type="number" step="0.01" min="0.01" required></div>
-                <div class="form-group"><label>Método (Sandbox)</label>
+                <div class="form-group"><label>Método</label>
                     <select id="pgMetodo">
                         <option value="TARJETA_SIMULADA">Tarjeta Simulada</option>
                         <option value="TRANSFERENCIA_SIMULADA">Transferencia Simulada</option>
-                        <option value="YAPE_SIMULADO">Yape / Plin Prueba</option>
+                        <option value="PAYPAL_SANDBOX">PayPal Sandbox</option>
                     </select>
                 </div>
                 <div class="form-group"><label>Cód. Operación (Opcional)</label><input id="pgCodigo" placeholder="Autogenerado si vacío"></div>
@@ -1609,23 +1672,52 @@ async function renderPagos() {
             </form>
         </div>
         <div class="card">
-            <h3>Pagos Procesados</h3>
+            <h3>Historial de Pagos y Auditoría de Pasarela</h3>
             <div class="table-wrap"><table>
-                <thead><tr><th>ID</th><th>Obra</th><th>Valoriz.</th><th>Comprob.</th><th>Ingreso ID</th><th>Método</th><th>Cód. Operación</th><th>Monto (S/)</th><th>Estado</th></tr></thead>
+                <thead><tr><th>ID</th><th>Obra</th><th>Comprob.</th><th>Ingreso</th><th>Pasarela / Método</th><th>Cód. Operación</th><th>Monto (S/)</th><th>Cobro</th><th>Tarjeta</th><th>Estado</th></tr></thead>
                 <tbody>${pagos.map(p => `<tr>
-                    <td>${p.idPago}</td><td>#${p.idObra}</td><td>${p.idValorizacion ? '#' + p.idValorizacion : '-'}</td>
-                    <td>${p.idComprobante ? '#' + p.idComprobante : '-'}</td><td>#${p.idIngresoGenerado}</td>
-                    <td>${esc(p.metodoPago)}</td><td><strong>${esc(p.codigoOperacion)}</strong></td>
-                    <td>S/ ${Number(p.monto).toFixed(2)}</td><td><span class="badge badge-ok">${esc(p.estado)}</span></td>
+                    <td>${p.idPago}</td><td>#${p.idObra}</td><td>${p.idComprobante ? '#' + p.idComprobante : '-'}</td>
+                    <td>${p.idIngresoGenerado ? '#' + p.idIngresoGenerado : '-'}</td>
+                    <td>${esc(p.pasarela || '-')} / ${esc(p.metodoPago)}</td><td><strong>${esc(p.codigoOperacion)}</strong></td>
+                    <td>S/ ${Number(p.monto).toFixed(2)}</td>
+                    <td>${p.montoCobro ? `${Number(p.montoCobro).toFixed(2)} ${esc(p.monedaCobro || 'PEN')}` : '-'}</td>
+                    <td>${p.ultimos4 ? `${esc(p.marcaTarjeta || '')} *${esc(p.ultimos4)}` : '-'}</td>
+                    <td title="${esc(p.motivo || '')}"><span class="badge ${p.estado === 'APROBADO' ? 'badge-ok' : 'badge-danger'}">${esc(p.estado)}</span></td>
                 </tr>`).join('')}</tbody>
             </table></div>
         </div>`;
+
+    if (esFinanzas) {
+        document.getElementById('formTc').onsubmit = async (e) => {
+            e.preventDefault();
+            try {
+                await api('/api/tipo-cambio', {
+                    method: 'PUT',
+                    body: { valor: Number(document.getElementById('tcValor').value) }
+                });
+                mostrarAlerta('Tipo de cambio USD/PEN actualizado.');
+                await renderPagos();
+            } catch (err) { mostrarAlerta(err.message, 'error'); }
+        };
+    }
 
     document.getElementById('pgVal').onchange = (e) => {
         const v = valsNoPagadas.find(x => x.idValorizacion == e.target.value);
         if (v) {
             document.getElementById('pgObra').value = v.idObra;
             document.getElementById('pgMonto').value = v.montoValorizado;
+        }
+    };
+
+    document.getElementById('pgComp').onchange = (e) => {
+        const c = compsEmitidos.find(x => x.idComprobante == e.target.value);
+        if (c) {
+            const v = valorizaciones.find(x => x.idValorizacion == c.idValorizacion);
+            if (v) {
+                document.getElementById('pgObra').value = v.idObra;
+                document.getElementById('pgVal').value = v.idValorizacion;
+            }
+            document.getElementById('pgMonto').value = c.total;
         }
     };
 

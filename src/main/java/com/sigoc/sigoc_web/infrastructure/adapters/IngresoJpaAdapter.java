@@ -36,6 +36,7 @@ public class IngresoJpaAdapter implements IngresoPort {
     public Ingreso guardar(Ingreso ingreso) {
         IngresoEntity e = new IngresoEntity();
         e.setIdObra(ingreso.getIdObra());
+        e.setIdPago(ingreso.getIdPago());
         e.setFecha(ingreso.getFecha());
         e.setConcepto(ingreso.getConcepto());
         e.setMonto(ingreso.getMonto());
@@ -47,6 +48,7 @@ public class IngresoJpaAdapter implements IngresoPort {
         return new Ingreso(
                 e.getIdIngreso(),
                 e.getIdObra(),
+                e.getIdPago(),
                 e.getFecha(),
                 e.getConcepto(),
                 e.getMonto(),

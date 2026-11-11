@@ -32,6 +32,12 @@ public class ComprobanteJpaAdapter implements ComprobantePort {
     }
 
     @Override
+    @Transactional
+    public Optional<Comprobante> findByIdParaActualizar(Integer idComprobante) {
+        return repository.findByIdParaActualizar(idComprobante).map(this::toModel);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Optional<Comprobante> findActivoByValorizacion(Integer idValorizacion) {
         return repository.findFirstByIdValorizacionAndActivoTrue(idValorizacion).map(this::toModel);
@@ -44,6 +50,18 @@ public class ComprobanteJpaAdapter implements ComprobantePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<Comprobante> findByCodigoPago(String codigoPago) {
+        return repository.findByCodigoPagoAndActivoTrue(codigoPago).map(this::toModel);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public int maxNumeroBySerie(String serie) {
+        return repository.maxNumeroBySerie(serie);
+    }
+
+    @Override
     @Transactional
     public Comprobante guardar(Comprobante comprobante) {
         ComprobanteEntity entity = comprobante.getIdComprobante() != null
@@ -51,11 +69,15 @@ public class ComprobanteJpaAdapter implements ComprobantePort {
                 : new ComprobanteEntity();
         entity.setIdValorizacion(comprobante.getIdValorizacion());
         entity.setTipoComprobante(comprobante.getTipoComprobante());
+        entity.setSerie(comprobante.getSerie() != null ? comprobante.getSerie() : "CV01");
+        entity.setNumero(comprobante.getNumero() != null ? comprobante.getNumero() : 1);
         entity.setSerieNumero(comprobante.getSerieNumero());
         entity.setFechaEmision(comprobante.getFechaEmision());
         entity.setSubtotal(comprobante.getSubtotal());
         entity.setIgv(comprobante.getIgv());
         entity.setTotal(comprobante.getTotal());
+        entity.setCodigoPago(comprobante.getCodigoPago());
+        entity.setVenceEl(comprobante.getVenceEl());
         entity.setEstado(comprobante.getEstado());
         entity.setActivo(comprobante.isActivo());
         entity.setFechaBorrado(comprobante.getFechaBorrado());
@@ -67,11 +89,15 @@ public class ComprobanteJpaAdapter implements ComprobantePort {
                 e.getIdComprobante(),
                 e.getIdValorizacion(),
                 e.getTipoComprobante(),
+                e.getSerie(),
+                e.getNumero(),
                 e.getSerieNumero(),
                 e.getFechaEmision(),
                 e.getSubtotal(),
                 e.getIgv(),
                 e.getTotal(),
+                e.getCodigoPago(),
+                e.getVenceEl(),
                 e.getEstado(),
                 e.isActivo(),
                 e.getFechaBorrado()
