@@ -101,4 +101,15 @@ public class Asistencia {
     public void setFechaBorrado(LocalDateTime fechaBorrado) {
         this.fechaBorrado = fechaBorrado;
     }
+
+    /**
+     * Indica si la asistencia habilita producción (RF-12) y es remunerada en planilla (RF-14).
+     */
+    public boolean esAsistenciaValida() {
+        if (estado == null) {
+            return false;
+        }
+        String e = estado.trim().toUpperCase();
+        return e.equals("PRESENTE") || e.equals("TARDANZA") || e.equals("ASISTIO") || e.equals("ASISTIÓ");
+    }
 }

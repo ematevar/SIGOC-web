@@ -205,4 +205,44 @@ public class CasosUsoConfig {
     public ObtenerConsumoAcumuladoPartida obtenerConsumoAcumuladoPartida(ConsumoPort consumoPort) {
         return new ObtenerConsumoAcumuladoPartida(consumoPort);
     }
+
+    // ---------- Personal, asistencia y producción (RF-10, RF-11, RF-12) ----------
+
+    @Bean
+    public ListarEmpleados listarEmpleados(EmpleadoPort empleadoPort) {
+        return new ListarEmpleados(empleadoPort);
+    }
+
+    @Bean
+    public GuardarEmpleado guardarEmpleado(EmpleadoPort empleadoPort) {
+        return new GuardarEmpleado(empleadoPort);
+    }
+
+    @Bean
+    public EliminarEmpleado eliminarEmpleado(EmpleadoPort empleadoPort) {
+        return new EliminarEmpleado(empleadoPort);
+    }
+
+    @Bean
+    public ListarAsistencias listarAsistencias(AsistenciaPort asistenciaPort) {
+        return new ListarAsistencias(asistenciaPort);
+    }
+
+    @Bean
+    public RegistrarAsistencia registrarAsistencia(AsistenciaPort asistenciaPort, EmpleadoPort empleadoPort,
+                                                   ObraPort obraPort, Clock clock) {
+        return new RegistrarAsistencia(asistenciaPort, empleadoPort, obraPort, clock);
+    }
+
+    @Bean
+    public ListarProduccion listarProduccion(ProduccionPort produccionPort) {
+        return new ListarProduccion(produccionPort);
+    }
+
+    @Bean
+    public RegistrarProduccion registrarProduccion(ProduccionPort produccionPort, EmpleadoPort empleadoPort,
+                                                   PartidaPort partidaPort, ObraPort obraPort,
+                                                   AsistenciaPort asistenciaPort, Clock clock) {
+        return new RegistrarProduccion(produccionPort, empleadoPort, partidaPort, obraPort, asistenciaPort, clock);
+    }
 }
