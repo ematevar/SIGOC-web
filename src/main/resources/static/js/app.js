@@ -3,7 +3,8 @@ const sesion = {
     nombre: document.body.dataset.nombre || '',
     rol: document.body.dataset.rol || '',
     rolEtiqueta: document.body.dataset.rolEtiqueta || '',
-    requiereCambioClave: document.body.dataset.cambioClave === 'true'
+    requiereCambioClave: document.body.dataset.cambioClave === 'true',
+    csrfToken: document.body.dataset.csrf || ''
 };
 
 const MODULOS = [
@@ -58,10 +59,16 @@ function ocultarAlerta() {
 
 async function api(url, options = {}) {
     const opts = { credentials: 'same-origin', ...options };
+    const headers = { ...(opts.headers || {}) };
+    const method = (opts.method || 'GET').toUpperCase();
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && sesion.csrfToken) {
+        headers['X-CSRF-TOKEN'] = sesion.csrfToken;
+    }
     if (opts.body && typeof opts.body !== 'string') {
-        opts.headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+        headers['Content-Type'] = 'application/json';
         opts.body = JSON.stringify(opts.body);
     }
+    opts.headers = headers;
     const res = await fetch(url, opts);
     if (res.status === 401) {
         window.location.href = '/login';
@@ -1497,7 +1504,7 @@ document.getElementById('formClave').onsubmit = async (e) => {
 };
 
 document.getElementById('btnLogout').onclick = async () => {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    try { await api('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
     window.location.href = '/login';
 };
 

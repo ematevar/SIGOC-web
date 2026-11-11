@@ -1,9 +1,10 @@
 -- ============================================================
 -- SIGOC — sigoc_datos_iniciales.sql
--- Roles según los tres perfiles del SRS (RF-01):
+-- Roles según los cuatro perfiles del SRS Web (RF-01):
 --   1. ADMIN (Administrador)
 --   2. RESIDENTE (Residente de Obra)
 --   3. ALMACENERO (Almacenero)
+--   4. CONTADOR (Contador)
 -- ============================================================
 USE sigoc_db;
 
@@ -15,6 +16,9 @@ SELECT 'RESIDENTE' WHERE NOT EXISTS (SELECT 1 FROM rol WHERE nombre_rol='RESIDEN
 
 INSERT INTO rol(nombre_rol)
 SELECT 'ALMACENERO' WHERE NOT EXISTS (SELECT 1 FROM rol WHERE nombre_rol='ALMACENERO');
+
+INSERT INTO rol(nombre_rol)
+SELECT 'CONTADOR' WHERE NOT EXISTS (SELECT 1 FROM rol WHERE nombre_rol='CONTADOR');
 
 -- Cuenta inicial de Administrador (el sistema solicita cambiar la clave en el primer inicio)
 INSERT INTO usuario(nombre_completo, usuario_login, contrasena_hash, id_rol, estado, activo)

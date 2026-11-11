@@ -45,6 +45,7 @@ public class AuthController {
         UsuarioSesion usuario = iniciarSesion.ejecutar(body.usuario(), body.clave(), esperado, body.captcha());
         request.changeSessionId(); // previene fijación de sesión
         SesionHttp.guardarUsuario(request, usuario);
+        SesionHttp.regenerarCsrfToken(request);
         return aRespuesta(usuario);
     }
 
