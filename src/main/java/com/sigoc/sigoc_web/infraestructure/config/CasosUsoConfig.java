@@ -1,10 +1,7 @@
 package com.sigoc.sigoc_web.infraestructure.config;
 
 import com.sigoc.sigoc_web.aplication.usecases.*;
-import com.sigoc.sigoc_web.domain.ports.out.IntentosLoginPort;
-import com.sigoc.sigoc_web.domain.ports.out.PasswordHasherPort;
-import com.sigoc.sigoc_web.domain.ports.out.RolPort;
-import com.sigoc.sigoc_web.domain.ports.out.UsuarioPort;
+import com.sigoc.sigoc_web.domain.ports.out.*;
 import com.sigoc.sigoc_web.domain.services.CaptchaService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -67,5 +64,59 @@ public class CasosUsoConfig {
     @Bean
     public CambiarEstadoUsuario cambiarEstadoUsuario(UsuarioPort usuarioPort) {
         return new CambiarEstadoUsuario(usuarioPort);
+    }
+
+    // ---------- Obras y partidas (RF-03, RF-04, RF-16b) ----------
+
+    @Bean
+    public ListarObras listarObras(ObraPort obraPort) {
+        return new ListarObras(obraPort);
+    }
+
+    @Bean
+    public GuardarObra guardarObra(ObraPort obraPort) {
+        return new GuardarObra(obraPort);
+    }
+
+    @Bean
+    public EliminarObra eliminarObra(ObraPort obraPort) {
+        return new EliminarObra(obraPort);
+    }
+
+    @Bean
+    public CerrarObra cerrarObra(ObraPort obraPort) {
+        return new CerrarObra(obraPort);
+    }
+
+    @Bean
+    public ListarPartidas listarPartidas(PartidaPort partidaPort) {
+        return new ListarPartidas(partidaPort);
+    }
+
+    @Bean
+    public GuardarPartida guardarPartida(PartidaPort partidaPort, ObraPort obraPort) {
+        return new GuardarPartida(partidaPort, obraPort);
+    }
+
+    @Bean
+    public EliminarPartida eliminarPartida(PartidaPort partidaPort) {
+        return new EliminarPartida(partidaPort);
+    }
+
+    @Bean
+    public ListarMaterialesPartida listarMaterialesPartida(PartidaPort partidaPort,
+                                                           PartidaMaterialPort partidaMaterialPort) {
+        return new ListarMaterialesPartida(partidaPort, partidaMaterialPort);
+    }
+
+    @Bean
+    public AsignarMaterialPartida asignarMaterialPartida(PartidaPort partidaPort, ObraPort obraPort,
+                                                         PartidaMaterialPort partidaMaterialPort) {
+        return new AsignarMaterialPartida(partidaPort, obraPort, partidaMaterialPort);
+    }
+
+    @Bean
+    public EliminarMaterialPartida eliminarMaterialPartida(PartidaMaterialPort partidaMaterialPort) {
+        return new EliminarMaterialPartida(partidaMaterialPort);
     }
 }

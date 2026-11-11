@@ -110,4 +110,20 @@ public class Obra {
     public void setFechaBorrado(LocalDateTime fechaBorrado) {
         this.fechaBorrado = fechaBorrado;
     }
+
+    /**
+     * Una obra es operable para partidas y movimientos si está activa y no fue Finalizada/Cerrada/Inactiva.
+     */
+    public boolean isOperable() {
+        if (!activo) {
+            return false;
+        }
+        if (estado == null) {
+            return true;
+        }
+        String e = estado.trim();
+        return !e.equalsIgnoreCase("Finalizada")
+                && !e.equalsIgnoreCase("Inactiva")
+                && !e.equalsIgnoreCase("Cerrada");
+    }
 }
