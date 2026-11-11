@@ -156,6 +156,12 @@ class PersonalAsistenciaProduccionTest {
 
         @Override public List<Asistencia> findAllActivas() { return datos; }
         @Override public List<Asistencia> findActivasByObra(Integer idObra) { return datos; }
+        @Override public List<Asistencia> findActivasByObraYPeriodo(Integer idObra, LocalDate desde, LocalDate hasta) {
+            return datos.stream().filter(a -> a.isActivo()
+                    && Objects.equals(a.getIdObra(), idObra)
+                    && !a.getFecha().isBefore(desde)
+                    && !a.getFecha().isAfter(hasta)).toList();
+        }
         @Override public Optional<Asistencia> findActivaByEmpleadoObraYFecha(Integer idEmp, Integer idObra, LocalDate f) {
             return datos.stream().filter(a -> a.isActivo()
                     && Objects.equals(a.getIdEmpleado(), idEmp)

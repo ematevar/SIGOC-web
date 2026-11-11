@@ -46,6 +46,13 @@ public class AsistenciaJpaAdapter implements AsistenciaPort {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Asistencia> findActivasByObraYPeriodo(Integer idObra, LocalDate desde, LocalDate hasta) {
+        return repository.findByIdObraAndFechaBetweenAndActivoTrue(idObra, desde, hasta)
+                .stream().map(this::toModel).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public boolean estaEnPeriodoCerrado(Integer idObra, LocalDate fecha) {
         return !em.createNativeQuery(
                         "SELECT 1 FROM cierre_planilla WHERE id_obra = :idObra AND activo = 1 "

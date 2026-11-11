@@ -11,6 +11,8 @@ public interface AsistenciaPort {
 
     List<Asistencia> findActivasByObra(Integer idObra);
 
+    List<Asistencia> findActivasByObraYPeriodo(Integer idObra, LocalDate desde, LocalDate hasta);
+
     Optional<Asistencia> findActivaByEmpleadoObraYFecha(Integer idEmpleado, Integer idObra, LocalDate fecha);
 
     boolean estaEnPeriodoCerrado(Integer idObra, LocalDate fecha);

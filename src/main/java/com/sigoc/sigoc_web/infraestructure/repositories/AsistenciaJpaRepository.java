@@ -17,4 +17,7 @@ public interface AsistenciaJpaRepository extends JpaRepository<AsistenciaEntity,
 
     Optional<AsistenciaEntity> findFirstByIdEmpleadoAndIdObraAndFechaAndActivoTrue(
             Integer idEmpleado, Integer idObra, LocalDate fecha);
+
+    List<AsistenciaEntity> findByIdObraAndFechaBetweenAndActivoTrue(
+            Integer idObra, LocalDate desde, LocalDate hasta);
 }

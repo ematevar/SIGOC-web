@@ -245,4 +245,38 @@ public class CasosUsoConfig {
                                                    AsistenciaPort asistenciaPort, Clock clock) {
         return new RegistrarProduccion(produccionPort, empleadoPort, partidaPort, obraPort, asistenciaPort, clock);
     }
+
+    // --- Finanzas (Parte 7) ---
+
+    @Bean
+    public ListarIngresos listarIngresos(IngresoPort ingresoPort) {
+        return new ListarIngresos(ingresoPort);
+    }
+
+    @Bean
+    public RegistrarIngreso registrarIngreso(IngresoPort ingresoPort, ObraPort obraPort, Clock clock) {
+        return new RegistrarIngreso(ingresoPort, obraPort, clock);
+    }
+
+    @Bean
+    public ListarEgresos listarEgresos(EgresoPort egresoPort) {
+        return new ListarEgresos(egresoPort);
+    }
+
+    @Bean
+    public RegistrarEgreso registrarEgreso(EgresoPort egresoPort, ObraPort obraPort, Clock clock) {
+        return new RegistrarEgreso(egresoPort, obraPort, clock);
+    }
+
+    @Bean
+    public ListarCierresPlanilla listarCierresPlanilla(CierrePlanillaPort cierrePlanillaPort) {
+        return new ListarCierresPlanilla(cierrePlanillaPort);
+    }
+
+    @Bean
+    public CerrarPlanilla cerrarPlanilla(CierrePlanillaPort cierrePort, ObraPort obraPort,
+                                         AsistenciaPort asistenciaPort, EmpleadoPort empleadoPort,
+                                         EgresoPort egresoPort, Clock clock) {
+        return new CerrarPlanilla(cierrePort, obraPort, asistenciaPort, empleadoPort, egresoPort, clock);
+    }
 }
