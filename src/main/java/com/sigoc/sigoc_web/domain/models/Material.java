@@ -90,4 +90,11 @@ public class Material {
     public void setFechaBorrado(LocalDateTime fechaBorrado) {
         this.fechaBorrado = fechaBorrado;
     }
+
+    /**
+     * RF-06 / RF-08: indica si el stock actual alcanzó o cayó por debajo del mínimo configurado.
+     */
+    public boolean isStockEnAlerta() {
+        return stockActual != null && stockMinimo != null && stockActual.compareTo(stockMinimo) <= 0;
+    }
 }

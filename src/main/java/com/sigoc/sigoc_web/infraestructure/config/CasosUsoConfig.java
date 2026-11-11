@@ -138,4 +138,41 @@ public class CasosUsoConfig {
     public ListarAvances listarAvances(AvancePartidaPort avancePort) {
         return new ListarAvances(avancePort);
     }
+
+    // ---------- Materiales y proveedores (RF-06, RF-09) ----------
+
+    @Bean
+    public ListarMateriales listarMateriales(MaterialPort materialPort) {
+        return new ListarMateriales(materialPort);
+    }
+
+    @Bean
+    public ListarAlertasStock listarAlertasStock(MaterialPort materialPort) {
+        return new ListarAlertasStock(materialPort);
+    }
+
+    @Bean
+    public GuardarMaterial guardarMaterial(MaterialPort materialPort) {
+        return new GuardarMaterial(materialPort);
+    }
+
+    @Bean
+    public EliminarMaterial eliminarMaterial(MaterialPort materialPort) {
+        return new EliminarMaterial(materialPort);
+    }
+
+    @Bean
+    public ListarProveedores listarProveedores(ProveedorPort proveedorPort) {
+        return new ListarProveedores(proveedorPort);
+    }
+
+    @Bean
+    public GuardarProveedor guardarProveedor(ProveedorPort proveedorPort) {
+        return new GuardarProveedor(proveedorPort);
+    }
+
+    @Bean
+    public EliminarProveedor eliminarProveedor(ProveedorPort proveedorPort) {
+        return new EliminarProveedor(proveedorPort);
+    }
 }
