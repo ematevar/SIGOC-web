@@ -107,7 +107,12 @@ async function cargarAlertasStock() {
         const alertas = await api('/api/materiales/alertas');
         if (alertas && alertas.length > 0) {
             const lista = alertas.map(a => `${a.nombre} (${a.stockActual} / min ${a.stockMinimo} ${a.unidadMedida})`).join(' · ');
-            stockAlertBanner.innerHTML = `<strong>Alerta de Stock Mínimo (RF-06):</strong> ${esc(lista)}`;
+            stockAlertBanner.replaceChildren();
+            const strong = document.createElement('strong');
+            strong.textContent = 'Alerta de Stock Mínimo (RF-06): ';
+            const span = document.createElement('span');
+            span.textContent = lista;
+            stockAlertBanner.append(strong, span);
             stockAlertBanner.classList.remove('hidden');
         } else {
             stockAlertBanner.classList.add('hidden');
@@ -152,7 +157,11 @@ async function seleccionarModulo(id) {
         }
     } catch (e) {
         mostrarAlerta(e.message, 'error');
-        moduleContainer.innerHTML = `<div class="card">${esc(e.message)}</div>`;
+        moduleContainer.replaceChildren();
+        const errCard = document.createElement('div');
+        errCard.className = 'card';
+        errCard.textContent = e.message || 'Error al cargar el módulo.';
+        moduleContainer.appendChild(errCard);
     }
 }
 

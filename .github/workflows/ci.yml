@@ -24,4 +24,6 @@ jobs:
           cache: maven
 
       - name: Compilar y ejecutar pruebas con Maven
-        run: ./mvnw clean test --batch-mode
+        run: |
+          chmod +x ./mvnw
+          ./mvnw clean test --batch-mode
