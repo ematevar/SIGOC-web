@@ -44,7 +44,8 @@ function esc(v) {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function mostrarAlerta(msg, tipo = 'success') {
@@ -159,23 +160,78 @@ async function renderInicio() {
     const obras = await api('/api/obras').catch(() => []);
     const alertas = await cargarAlertasStock();
     const permitidos = MODULOS.filter(m => m.id !== 'INICIO' && m.roles.includes(sesion.rol));
-    const tarjetas = permitidos.map(m =>
-        `<div class="kpi-card" style="cursor:pointer;" onclick="seleccionarModulo('${m.id}')">
-            <div class="kpi-label">Módulo</div>
-            <div style="font-size:17px;font-weight:700;color:var(--navy);margin-top:6px;">${esc(m.label)}</div>
-            <div style="font-size:12px;color:var(--blue);margin-top:8px;">Abrir módulo →</div>
-         </div>`
-    ).join('');
-    moduleContainer.innerHTML = `
-        <div class="kpi-grid">
-            <div class="kpi-card"><div class="kpi-label">Obras activas</div><div class="kpi-value">${obras.length}</div></div>
-            <div class="kpi-card"><div class="kpi-label">Perfil activo</div><div class="kpi-value" style="font-size:20px;">${esc(sesion.rolEtiqueta)}</div></div>
-            <div class="kpi-card"><div class="kpi-label">Alertas stock</div><div class="kpi-value">${alertas.length}</div></div>
-        </div>
-        <div class="card">
-            <h3>Accesos directos</h3>
-            <div class="kpi-grid">${tarjetas}</div>
-        </div>`;
+
+    moduleContainer.replaceChildren();
+
+    const gridKpis = document.createElement('div');
+    gridKpis.className = 'kpi-grid';
+
+    const kpi1 = document.createElement('div');
+    kpi1.className = 'kpi-card';
+    const lbl1 = document.createElement('div');
+    lbl1.className = 'kpi-label';
+    lbl1.textContent = 'Obras activas';
+    const val1 = document.createElement('div');
+    val1.className = 'kpi-value';
+    val1.textContent = String(obras.length);
+    kpi1.append(lbl1, val1);
+
+    const kpi2 = document.createElement('div');
+    kpi2.className = 'kpi-card';
+    const lbl2 = document.createElement('div');
+    lbl2.className = 'kpi-label';
+    lbl2.textContent = 'Perfil activo';
+    const val2 = document.createElement('div');
+    val2.className = 'kpi-value';
+    val2.style.fontSize = '20px';
+    val2.textContent = String(sesion.rolEtiqueta || '');
+    kpi2.append(lbl2, val2);
+
+    const kpi3 = document.createElement('div');
+    kpi3.className = 'kpi-card';
+    const lbl3 = document.createElement('div');
+    lbl3.className = 'kpi-label';
+    lbl3.textContent = 'Alertas stock';
+    const val3 = document.createElement('div');
+    val3.className = 'kpi-value';
+    val3.textContent = String(alertas.length);
+    kpi3.append(lbl3, val3);
+
+    gridKpis.append(kpi1, kpi2, kpi3);
+
+    const cardAccesos = document.createElement('div');
+    cardAccesos.className = 'card';
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Accesos directos';
+    cardAccesos.appendChild(h3);
+
+    const gridModulos = document.createElement('div');
+    gridModulos.className = 'kpi-grid';
+
+    permitidos.forEach(m => {
+        const item = document.createElement('div');
+        item.className = 'kpi-card';
+        item.style.cursor = 'pointer';
+        item.onclick = () => { seleccionarModulo(m.id).catch(console.error); };
+
+        const lbl = document.createElement('div');
+        lbl.className = 'kpi-label';
+        lbl.textContent = 'Módulo';
+
+        const tit = document.createElement('div');
+        tit.style.cssText = 'font-size:17px;font-weight:700;color:var(--navy);margin-top:6px;';
+        tit.textContent = m.label;
+
+        const link = document.createElement('div');
+        link.style.cssText = 'font-size:12px;color:var(--blue);margin-top:8px;';
+        link.textContent = 'Abrir módulo →';
+
+        item.append(lbl, tit, link);
+        gridModulos.appendChild(item);
+    });
+
+    cardAccesos.appendChild(gridModulos);
+    moduleContainer.append(gridKpis, cardAccesos);
 }
 
 async function renderObras() {
@@ -1704,37 +1760,37 @@ async function renderPagos() {
         <div class="card">
             <h3>Tipo de Cambio Referencial USD → PEN (PayPal Sandbox)</h3>
             <form id="formTc" class="form-grid">
-                <div class="form-group"><label>Par de Moneda</label><input value="USD → PEN" disabled></div>
-                <div class="form-group"><label>Valor (S/ por 1 USD) *</label>
-                    <input id="tcValor" type="number" step="0.0001" min="0.1" value="${Number(tipoCambio.valor || 3.75).toFixed(4)}" ${esFinanzas ? '' : 'disabled'} required>
+                <div class="form-group"><label for="tcPar">Par de Moneda</label><input id="tcPar" value="USD → PEN" disabled></div>
+                <div class="form-group"><label for="tcValor">Valor (S/ por 1 USD) *</label>
+                    <input id="tcValor" type="number" step="0.0001" min="0.1" required>
                 </div>
-                <div class="form-group"><label>Última actualización</label>
-                    <input value="${tipoCambio.fechaActualizacion ? esc(String(tipoCambio.fechaActualizacion).replace('T', ' ').slice(0, 16)) : '-'}" disabled>
+                <div class="form-group"><label for="tcFecha">Última actualización</label>
+                    <input id="tcFecha" disabled>
                 </div>
-                ${esFinanzas ? `<div class="form-group"><button type="submit" class="btn btn-secondary">Actualizar Tipo de Cambio</button></div>` : ''}
+                <div id="tcBotonContenedor" class="form-group"></div>
             </form>
         </div>
         <div class="card">
             <h3>Registro / Conciliación Interna de Pagos (Genera Ingreso Automático)</h3>
             <form id="formPago" class="form-grid">
-                <div class="form-group"><label>Obra Destino *</label>
-                    <select id="pgObra">${obras.filter(o => o.operable).map(o => `<option value="${o.idObra}">${esc(o.nombre)}</option>`).join('')}</select>
+                <div class="form-group"><label for="pgObra">Obra Destino *</label>
+                    <select id="pgObra"></select>
                 </div>
-                <div class="form-group"><label>Valorización (Opcional)</label>
-                    <select id="pgVal"><option value="">-- Ninguna --</option>${valsNoPagadas.map(v => `<option value="${v.idValorizacion}">N° ${v.numero || v.idValorizacion} · Obra #${v.idObra} · ${esc(v.periodo)} (S/ ${Number(v.montoValorizado).toFixed(2)})</option>`).join('')}</select>
+                <div class="form-group"><label for="pgVal">Valorización (Opcional)</label>
+                    <select id="pgVal"><option value="">-- Ninguna --</option></select>
                 </div>
-                <div class="form-group"><label>Comprobante CV01 (Opcional)</label>
-                    <select id="pgComp"><option value="">-- Ninguno --</option>${compsEmitidos.map(c => `<option value="${c.idComprobante}">#${c.idComprobante} · ${esc(c.serieNumero)} (S/ ${Number(c.total).toFixed(2)})</option>`).join('')}</select>
+                <div class="form-group"><label for="pgComp">Comprobante CV01 (Opcional)</label>
+                    <select id="pgComp"><option value="">-- Ninguno --</option></select>
                 </div>
-                <div class="form-group"><label>Monto (S/) *</label><input id="pgMonto" type="number" step="0.01" min="0.01" required></div>
-                <div class="form-group"><label>Método</label>
+                <div class="form-group"><label for="pgMonto">Monto (S/) *</label><input id="pgMonto" type="number" step="0.01" min="0.01" required></div>
+                <div class="form-group"><label for="pgMetodo">Método</label>
                     <select id="pgMetodo">
                         <option value="TARJETA_SIMULADA">Tarjeta Simulada</option>
                         <option value="TRANSFERENCIA_SIMULADA">Transferencia Simulada</option>
                         <option value="PAYPAL_SANDBOX">PayPal Sandbox</option>
                     </select>
                 </div>
-                <div class="form-group"><label>Cód. Operación (Opcional)</label><input id="pgCodigo" placeholder="Autogenerado si vacío"></div>
+                <div class="form-group"><label for="pgCodigo">Cód. Operación (Opcional)</label><input id="pgCodigo" placeholder="Autogenerado si vacío"></div>
                 <div class="form-group"><button type="submit" class="btn btn-success">Aprobar y Registrar Pago</button></div>
             </form>
         </div>
@@ -1742,17 +1798,94 @@ async function renderPagos() {
             <h3>Historial de Pagos y Auditoría de Pasarela</h3>
             <div class="table-wrap"><table>
                 <thead><tr><th>ID</th><th>Obra</th><th>Comprob.</th><th>Ingreso</th><th>Pasarela / Método</th><th>Cód. Operación</th><th>Monto (S/)</th><th>Cobro</th><th>Tarjeta</th><th>Estado</th></tr></thead>
-                <tbody>${pagos.map(p => `<tr>
-                    <td>${p.idPago}</td><td>#${p.idObra}</td><td>${p.idComprobante ? '#' + p.idComprobante : '-'}</td>
-                    <td>${p.idIngresoGenerado ? '#' + p.idIngresoGenerado : '-'}</td>
-                    <td>${esc(p.pasarela || '-')} / ${esc(p.metodoPago)}</td><td><strong>${esc(p.codigoOperacion)}</strong></td>
-                    <td>S/ ${Number(p.monto).toFixed(2)}</td>
-                    <td>${p.montoCobro ? `${Number(p.montoCobro).toFixed(2)} ${esc(p.monedaCobro || 'PEN')}` : '-'}</td>
-                    <td>${p.ultimos4 ? `${esc(p.marcaTarjeta || '')} *${esc(p.ultimos4)}` : '-'}</td>
-                    <td title="${esc(p.motivo || '')}"><span class="badge ${p.estado === 'APROBADO' ? 'badge-ok' : 'badge-danger'}">${esc(p.estado)}</span></td>
-                </tr>`).join('')}</tbody>
+                <tbody id="tablaPagosBody"></tbody>
             </table></div>
         </div>`;
+
+    const tcValorInput = document.getElementById('tcValor');
+    tcValorInput.value = Number(tipoCambio.valor || 3.75).toFixed(4);
+    if (!esFinanzas) tcValorInput.disabled = true;
+
+    const tcFechaInput = document.getElementById('tcFecha');
+    tcFechaInput.value = tipoCambio.fechaActualizacion
+        ? String(tipoCambio.fechaActualizacion).replace('T', ' ').slice(0, 16)
+        : '-';
+
+    if (esFinanzas) {
+        const btnTc = document.createElement('button');
+        btnTc.type = 'submit';
+        btnTc.className = 'btn btn-secondary';
+        btnTc.textContent = 'Actualizar Tipo de Cambio';
+        document.getElementById('tcBotonContenedor').appendChild(btnTc);
+    }
+
+    const selObra = document.getElementById('pgObra');
+    obras.filter(o => o.operable).forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.idObra;
+        opt.textContent = o.nombre;
+        selObra.appendChild(opt);
+    });
+
+    const selVal = document.getElementById('pgVal');
+    valsNoPagadas.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.idValorizacion;
+        opt.textContent = `N° ${v.numero || v.idValorizacion} · Obra #${v.idObra} · ${v.periodo} (S/ ${Number(v.montoValorizado).toFixed(2)})`;
+        selVal.appendChild(opt);
+    });
+
+    const selComp = document.getElementById('pgComp');
+    compsEmitidos.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.idComprobante;
+        opt.textContent = `#${c.idComprobante} · ${c.serieNumero} (S/ ${Number(c.total).toFixed(2)})`;
+        selComp.appendChild(opt);
+    });
+
+    const tbody = document.getElementById('tablaPagosBody');
+    pagos.forEach(p => {
+        const tr = document.createElement('tr');
+
+        const tdId = document.createElement('td');
+        tdId.textContent = String(p.idPago);
+
+        const tdObra = document.createElement('td');
+        tdObra.textContent = `#${p.idObra}`;
+
+        const tdComp = document.createElement('td');
+        tdComp.textContent = p.idComprobante ? `#${p.idComprobante}` : '-';
+
+        const tdIng = document.createElement('td');
+        tdIng.textContent = p.idIngresoGenerado ? `#${p.idIngresoGenerado}` : '-';
+
+        const tdMetodo = document.createElement('td');
+        tdMetodo.textContent = `${p.pasarela || '-'} / ${p.metodoPago || ''}`;
+
+        const tdCod = document.createElement('td');
+        const strongCod = document.createElement('strong');
+        strongCod.textContent = String(p.codigoOperacion || '');
+        tdCod.appendChild(strongCod);
+
+        const tdMonto = document.createElement('td');
+        tdMonto.textContent = `S/ ${Number(p.monto).toFixed(2)}`;
+
+        const tdCobro = document.createElement('td');
+        tdCobro.textContent = p.montoCobro ? `${Number(p.montoCobro).toFixed(2)} ${p.monedaCobro || 'PEN'}` : '-';
+
+        const tdTarj = document.createElement('td');
+        tdTarj.textContent = p.ultimos4 ? `${p.marcaTarjeta || ''} *${p.ultimos4}` : '-';
+
+        const tdEstado = document.createElement('td');
+        if (p.motivo) tdEstado.title = p.motivo;
+        const spEstado = document.createElement('span');
+        spEstado.className = `badge ${p.estado === 'APROBADO' ? 'badge-ok' : 'badge-danger'}`;
+        spEstado.textContent = String(p.estado || '');
+        tdEstado.appendChild(spEstado);
+
+        tr.append(tdId, tdObra, tdComp, tdIng, tdMetodo, tdCod, tdMonto, tdCobro, tdTarj, tdEstado);
+        tbody.appendChild(tr);
+    });
 
     if (esFinanzas) {
         document.getElementById('formTc').onsubmit = async (e) => {
@@ -1855,4 +1988,4 @@ renderSidebar();
 if (sesion.requiereCambioClave) {
     abrirModalClave(true);
 }
-seleccionarModulo('INICIO');
+seleccionarModulo('INICIO').catch(console.error);

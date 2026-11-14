@@ -22,6 +22,57 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class ReporteJdbcAdapter implements ReporteQueryPort {
 
+    private static final String SQL_CONSUMO_MATERIALES_CON_PARTIDA = """
+            SELECT m.nombre AS material, m.unidad_medida,
+            COALESCE((
+              SELECT SUM(dc.cantidad) FROM detalle_compra dc
+              JOIN compra_material cm ON cm.id_compra=dc.id_compra
+              LEFT JOIN egreso eg ON eg.id_compra=cm.id_compra AND eg.activo=1
+              WHERE dc.id_material=m.id_material AND dc.activo=1 AND cm.activo=1
+              AND (? = 0 OR eg.id_obra = ?)
+              AND (? IS NULL OR cm.fecha_compra >= ?)
+              AND (? IS NULL OR cm.fecha_compra <= ?)
+            ), 0) AS cant_comprada,
+            COALESCE((SELECT SUM(pm.cantidad_presupuestada) FROM partida_material pm
+              JOIN partida p ON p.id_partida=pm.id_partida
+              WHERE pm.id_material=m.id_material AND pm.activo=1 AND p.activo=1
+              AND (? = 0 OR p.id_obra = ?)), 0) AS cant_tabla_presup,
+            COALESCE((
+              SELECT SUM(c.cantidad) FROM consumo_material c
+              JOIN partida p ON p.id_partida=c.id_partida
+              WHERE c.id_material=m.id_material AND c.activo=1 AND p.activo=1
+              AND (? = 0 OR p.id_obra = ?)
+              AND (? IS NULL OR c.fecha_consumo >= ?)
+              AND (? IS NULL OR c.fecha_consumo <= ?)
+            ), 0) AS consumo_real,
+            m.stock_actual, m.stock_minimo
+            FROM material m WHERE m.activo=1 ORDER BY m.nombre
+            """;
+
+    private static final String SQL_CONSUMO_MATERIALES_SIN_PARTIDA = """
+            SELECT m.nombre AS material, m.unidad_medida,
+            COALESCE((
+              SELECT SUM(dc.cantidad) FROM detalle_compra dc
+              JOIN compra_material cm ON cm.id_compra=dc.id_compra
+              LEFT JOIN egreso eg ON eg.id_compra=cm.id_compra AND eg.activo=1
+              WHERE dc.id_material=m.id_material AND dc.activo=1 AND cm.activo=1
+              AND (? = 0 OR eg.id_obra = ?)
+              AND (? IS NULL OR cm.fecha_compra >= ?)
+              AND (? IS NULL OR cm.fecha_compra <= ?)
+            ), 0) AS cant_comprada,
+            0 AS cant_tabla_presup,
+            COALESCE((
+              SELECT SUM(c.cantidad) FROM consumo_material c
+              JOIN partida p ON p.id_partida=c.id_partida
+              WHERE c.id_material=m.id_material AND c.activo=1 AND p.activo=1
+              AND (? = 0 OR p.id_obra = ?)
+              AND (? IS NULL OR c.fecha_consumo >= ?)
+              AND (? IS NULL OR c.fecha_consumo <= ?)
+            ), 0) AS consumo_real,
+            m.stock_actual, m.stock_minimo
+            FROM material m WHERE m.activo=1 ORDER BY m.nombre
+            """;
+
     private final JdbcTemplate jdbcTemplate;
     private volatile Boolean cacheTablaPartidaMaterial;
 
@@ -75,34 +126,7 @@ public class ReporteJdbcAdapter implements ReporteQueryPort {
     @Override
     public Reporte consultarConsumoMateriales(Integer idObra, LocalDate desde, LocalDate hasta) {
         boolean tieneTabla = existeTablaPartidaMaterial();
-        String subPresupuesto = tieneTabla
-                ? "COALESCE((SELECT SUM(pm.cantidad_presupuestada) FROM partida_material pm "
-                + "JOIN partida p ON p.id_partida=pm.id_partida "
-                + "WHERE pm.id_material=m.id_material AND pm.activo=1 AND p.activo=1 "
-                + "AND (? = 0 OR p.id_obra = ?)), 0)"
-                : "0";
-
-        String sql = "SELECT m.nombre AS material, m.unidad_medida, "
-                + "COALESCE(("
-                + "  SELECT SUM(dc.cantidad) FROM detalle_compra dc "
-                + "  JOIN compra_material cm ON cm.id_compra=dc.id_compra "
-                + "  LEFT JOIN egreso eg ON eg.id_compra=cm.id_compra AND eg.activo=1 "
-                + "  WHERE dc.id_material=m.id_material AND dc.activo=1 AND cm.activo=1 "
-                + "  AND (? = 0 OR eg.id_obra = ?) "
-                + "  AND (? IS NULL OR cm.fecha_compra >= ?) "
-                + "  AND (? IS NULL OR cm.fecha_compra <= ?)"
-                + "), 0) AS cant_comprada, "
-                + subPresupuesto + " AS cant_tabla_presup, "
-                + "COALESCE(("
-                + "  SELECT SUM(c.cantidad) FROM consumo_material c "
-                + "  JOIN partida p ON p.id_partida=c.id_partida "
-                + "  WHERE c.id_material=m.id_material AND c.activo=1 AND p.activo=1 "
-                + "  AND (? = 0 OR p.id_obra = ?) "
-                + "  AND (? IS NULL OR c.fecha_consumo >= ?) "
-                + "  AND (? IS NULL OR c.fecha_consumo <= ?)"
-                + "), 0) AS consumo_real, "
-                + "m.stock_actual, m.stock_minimo "
-                + "FROM material m WHERE m.activo=1 ORDER BY m.nombre";
+        String sql = tieneTabla ? SQL_CONSUMO_MATERIALES_CON_PARTIDA : SQL_CONSUMO_MATERIALES_SIN_PARTIDA;
 
         List<String> cols = List.of(
                 "Material", "Unidad", "Presupuestado", "Consumo Real",

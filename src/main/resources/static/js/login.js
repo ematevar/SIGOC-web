@@ -53,4 +53,4 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-cargarCaptcha();
+cargarCaptcha().catch(console.error);

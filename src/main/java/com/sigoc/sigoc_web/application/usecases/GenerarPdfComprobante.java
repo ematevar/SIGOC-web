@@ -56,5 +56,25 @@ public class GenerarPdfComprobante {
     }
 
     public record ResultadoPdf(String nombreArchivo, byte[] contenido) {
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            ResultadoPdf that = (ResultadoPdf) o;
+            return java.util.Objects.equals(nombreArchivo, that.nombreArchivo) &&
+                   java.util.Arrays.equals(contenido, that.contenido);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = java.util.Objects.hashCode(nombreArchivo);
+            result = 31 * result + java.util.Arrays.hashCode(contenido);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "ResultadoPdf[nombreArchivo=" + nombreArchivo + ", contenido=" + (contenido != null ? contenido.length + " bytes" : "null") + "]";
+        }
     }
 }

@@ -29,14 +29,35 @@
     function mostrarRecibo(pago) {
         pubMetodosCard.classList.add('hidden');
         pubReciboCard.classList.remove('hidden');
-        document.getElementById('pubReciboContenido').innerHTML = `
-            <div class="kv-grid">
-                <div class="kv-item"><small>Código de Operación</small><strong>${pago.codigoOperacion}</strong></div>
-                <div class="kv-item"><small>Pasarela / Método</small><strong>${pago.pasarela} (${pago.metodoPago})</strong></div>
-                <div class="kv-item"><small>Importe Aprobado</small><strong>S/ ${Number(pago.monto).toFixed(2)}</strong></div>
-                <div class="kv-item"><small>Ingreso Contable</small><strong>#${pago.idIngresoGenerado || '-'}</strong></div>
-            </div>
-            <p>El comprobante y su valorización han quedado conciliados automáticamente en SIGOC Web.</p>`;
+        const cont = document.getElementById('pubReciboContenido');
+        cont.replaceChildren();
+
+        const grid = document.createElement('div');
+        grid.className = 'kv-grid';
+
+        const items = [
+            ['Código de Operación', String(pago.codigoOperacion || '')],
+            ['Pasarela / Método', `${pago.pasarela || ''} (${pago.metodoPago || ''})`],
+            ['Importe Aprobado', `S/ ${Number(pago.monto || 0).toFixed(2)}`],
+            ['Ingreso Contable', `#${pago.idIngresoGenerado || '-'}`]
+        ];
+
+        items.forEach(([lbl, val]) => {
+            const item = document.createElement('div');
+            item.className = 'kv-item';
+            const sm = document.createElement('small');
+            sm.textContent = lbl;
+            const st = document.createElement('strong');
+            st.textContent = val;
+            item.appendChild(sm);
+            item.appendChild(st);
+            grid.appendChild(item);
+        });
+
+        const p = document.createElement('p');
+        p.textContent = 'El comprobante y su valorización han quedado conciliados automáticamente en SIGOC Web.';
+        cont.appendChild(grid);
+        cont.appendChild(p);
     }
 
     async function cargarDetalle() {
@@ -158,5 +179,5 @@
         }
     };
 
-    cargarDetalle();
+    cargarDetalle().catch(console.error);
 })();

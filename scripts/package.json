@@ -1,0 +1,18 @@
+{
+  "name": "sigoc-web-scripts",
+  "version": "1.0.0",
+  "description": "Utilidades de sincronización e inspección de calidad de código entre SonarCloud y GitHub Issues para SIGOC-web",
+  "type": "module",
+  "scripts": {
+    "sync": "node sync-sonar.js",
+    "list": "node list-sonar.js"
+  },
+  "keywords": [
+    "sonarcloud",
+    "github",
+    "sigoc",
+    "code-quality"
+  ],
+  "author": "Emanuel Atencio Vargas",
+  "license": "MIT"
+}

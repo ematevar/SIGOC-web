@@ -61,22 +61,26 @@ public class ObraJpaAdapter implements ObraPort {
         return toModel(repository.saveAndFlush(e));
     }
 
+    private static final String SQL_TIENE_MOVIMIENTOS = """
+            SELECT 1 FROM (
+                SELECT id_obra FROM partida WHERE activo = 1
+                UNION ALL SELECT id_obra FROM asistencia WHERE activo = 1
+                UNION ALL SELECT id_obra FROM ingreso WHERE activo = 1
+                UNION ALL SELECT id_obra FROM egreso WHERE activo = 1
+                UNION ALL SELECT id_obra FROM cierre_planilla WHERE activo = 1
+                UNION ALL SELECT id_obra FROM valorizacion WHERE activo = 1
+                UNION ALL SELECT id_obra FROM pago WHERE activo = 1
+            ) t WHERE t.id_obra = :idObra
+            """;
+
     @Override
     @Transactional(readOnly = true)
     public boolean tieneMovimientos(Integer idObra) {
-        String[] tablas = {"partida", "asistencia", "ingreso", "egreso", "cierre_planilla", "valorizacion", "pago"};
-        for (String tabla : tablas) {
-            boolean existe = !em.createNativeQuery(
-                            "SELECT 1 FROM " + tabla + " WHERE id_obra = :idObra AND activo = 1")
-                    .setParameter("idObra", idObra)
-                    .setMaxResults(1)
-                    .getResultList()
-                    .isEmpty();
-            if (existe) {
-                return true;
-            }
-        }
-        return false;
+        return !em.createNativeQuery(SQL_TIENE_MOVIMIENTOS)
+                .setParameter("idObra", idObra)
+                .setMaxResults(1)
+                .getResultList()
+                .isEmpty();
     }
 
     @Override

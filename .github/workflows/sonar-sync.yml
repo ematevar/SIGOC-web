@@ -1,0 +1,33 @@
+name: Sincronizar SonarCloud con GitHub Issues
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 1' # Ejecutar semanalmente los lunes a las 04:00 UTC
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Ejecutar script de sincronización
+        env:
+          SONAR_HOST_URL: https://sonarcloud.io
+          SONAR_PROJECT_KEY: ematevar_SIGOC-web
+          SONAR_ORGANIZATION: ematevar
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/sync-sonar.js

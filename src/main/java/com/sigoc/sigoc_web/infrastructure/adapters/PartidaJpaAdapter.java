@@ -50,22 +50,22 @@ public class PartidaJpaAdapter implements PartidaPort {
         return sum == null ? BigDecimal.ZERO : sum;
     }
 
+    private static final String SQL_TIENE_MOVIMIENTOS = """
+            SELECT 1 FROM (
+                SELECT id_partida FROM avance_partida WHERE activo = 1
+                UNION ALL SELECT id_partida FROM consumo_material WHERE activo = 1
+                UNION ALL SELECT id_partida FROM produccion_empleado WHERE activo = 1
+            ) t WHERE t.id_partida = :idPartida
+            """;
+
     @Override
     @Transactional(readOnly = true)
     public boolean tieneMovimientos(Integer idPartida) {
-        String[] tablas = {"avance_partida", "consumo_material", "produccion_empleado"};
-        for (String tabla : tablas) {
-            boolean existe = !em.createNativeQuery(
-                            "SELECT 1 FROM " + tabla + " WHERE id_partida = :idPartida AND activo = 1")
-                    .setParameter("idPartida", idPartida)
-                    .setMaxResults(1)
-                    .getResultList()
-                    .isEmpty();
-            if (existe) {
-                return true;
-            }
-        }
-        return false;
+        return !em.createNativeQuery(SQL_TIENE_MOVIMIENTOS)
+                .setParameter("idPartida", idPartida)
+                .setMaxResults(1)
+                .getResultList()
+                .isEmpty();
     }
 
     @Override

@@ -69,16 +69,16 @@
                 Entorno de pruebas académicas: las tarjetas terminadas en <strong>0002</strong> o CVV <strong>999</strong> simulan rechazo bancario. No se almacena el número completo ni el CVV.
             </div>
             <form id="formTarjetaPublica" class="form-grid" autocomplete="off">
-                <div class="form-group"><label>Número de tarjeta (16 dígitos) *</label>
+                <div class="form-group"><label for="cardNum">Número de tarjeta (16 dígitos) *</label>
                     <input id="cardNum" required maxlength="19" placeholder="4111 1111 1111 1111">
                 </div>
-                <div class="form-group"><label>Titular de la tarjeta *</label>
+                <div class="form-group"><label for="cardHolder">Titular de la tarjeta *</label>
                     <input id="cardHolder" required placeholder="JUAN PEREZ">
                 </div>
-                <div class="form-group"><label>Vencimiento (MM/AA) *</label>
+                <div class="form-group"><label for="cardExp">Vencimiento (MM/AA) *</label>
                     <input id="cardExp" required maxlength="7" placeholder="12/28">
                 </div>
-                <div class="form-group"><label>CVV *</label>
+                <div class="form-group"><label for="cardCvv">CVV *</label>
                     <input id="cardCvv" type="password" required maxlength="4" placeholder="123">
                 </div>
                 <div class="form-group">
