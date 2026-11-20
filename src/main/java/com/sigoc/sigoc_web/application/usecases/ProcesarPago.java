@@ -8,6 +8,7 @@ import com.sigoc.sigoc_web.domain.ports.out.*;
 import com.sigoc.sigoc_web.domain.ports.out.PasarelaPagoPort.OrdenPayPal;
 import com.sigoc.sigoc_web.domain.ports.out.PasarelaPagoPort.ResultadoCapturaPayPal;
 import com.sigoc.sigoc_web.domain.ports.out.PasarelaPagoPort.ResultadoTarjetaSimulada;
+import com.sigoc.sigoc_web.domain.services.ControlIntentosPago;
 import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
 import com.sigoc.sigoc_web.domain.validators.ValidadorSigoc;
 
@@ -22,6 +23,7 @@ import java.util.UUID;
 /**
  * RF-20 / C02-C05: Procesa cobros internos y cobros públicos en línea (PayPal Sandbox o tarjeta simulada),
  * validando integridad y vigencia en servidor y generando automáticamente el Ingreso vinculado 1:1.
+ * El enlace público se bloquea 30 minutos al acumular 5 intentos rechazados (ver ControlIntentosPago).
  */
 public class ProcesarPago {
 
@@ -35,6 +37,7 @@ public class ProcesarPago {
     private final TipoCambioPort tipoCambioPort;
     private final PasarelaPagoPort pasarelaPagoPort;
     private final Clock clock;
+    private final int horasVigenciaEnlace;
 
     public ProcesarPago(PagoPort pagoPort, ObraPort obraPort, ValorizacionPort valorizacionPort,
                         ComprobantePort comprobantePort, IngresoPort ingresoPort, Clock clock) {
@@ -44,6 +47,14 @@ public class ProcesarPago {
     public ProcesarPago(PagoPort pagoPort, ObraPort obraPort, ValorizacionPort valorizacionPort,
                         ComprobantePort comprobantePort, IngresoPort ingresoPort,
                         TipoCambioPort tipoCambioPort, PasarelaPagoPort pasarelaPagoPort, Clock clock) {
+        this(pagoPort, obraPort, valorizacionPort, comprobantePort, ingresoPort, tipoCambioPort, pasarelaPagoPort,
+                clock, 72);
+    }
+
+    public ProcesarPago(PagoPort pagoPort, ObraPort obraPort, ValorizacionPort valorizacionPort,
+                        ComprobantePort comprobantePort, IngresoPort ingresoPort,
+                        TipoCambioPort tipoCambioPort, PasarelaPagoPort pasarelaPagoPort, Clock clock,
+                        int horasVigenciaEnlace) {
         this.pagoPort = pagoPort;
         this.obraPort = obraPort;
         this.valorizacionPort = valorizacionPort;
@@ -52,6 +63,7 @@ public class ProcesarPago {
         this.tipoCambioPort = tipoCambioPort;
         this.pasarelaPagoPort = pasarelaPagoPort;
         this.clock = clock;
+        this.horasVigenciaEnlace = horasVigenciaEnlace;
     }
 
     /**
@@ -174,7 +186,7 @@ public class ProcesarPago {
             registrarIntentoRechazado(obra.getIdObra(), val.getIdValorizacion(), comp.getIdComprobante(),
                     comp.getTotal(), "PAYPAL_SANDBOX", "PAYPAL_SANDBOX", idOrdenExterna,
                     cap.idCapturaExterna(), montoUsdEsperado, "USD", tc, null, null, motivo);
-            throw new PagoRechazadoException(motivo);
+            throw new PagoRechazadoException(mensajeTrasRechazo(comp, motivo));
         }
 
         String codigoOp = "PP-" + cap.idCapturaExterna();
@@ -204,7 +216,7 @@ public class ProcesarPago {
             registrarIntentoRechazado(obra.getIdObra(), val.getIdValorizacion(), comp.getIdComprobante(),
                     comp.getTotal(), "TARJETA_SIMULADA", "PASARELA_SIMULADA", null, null,
                     comp.getTotal(), "PEN", null, res.marcaTarjeta(), res.ultimos4(), res.motivo());
-            throw new PagoRechazadoException(res.motivo());
+            throw new PagoRechazadoException(mensajeTrasRechazo(comp, res.motivo()));
         }
 
         return persistirPagoAprobado(obra, val, comp, comp.getTotal(), "TARJETA_SIMULADA", res.codigoOperacion(),
@@ -229,6 +241,13 @@ public class ProcesarPago {
         if (!comp.esEnlaceVigente(LocalDateTime.now(clock))) {
             throw new ReglaNegocioException("El enlace de pago ha expirado (vigencia 72h). Solicita su renovación al contador.");
         }
+        LocalDateTime ahora = LocalDateTime.now(clock);
+        ControlIntentosPago.Estado intentos = estadoIntentos(comp, ahora);
+        if (intentos.bloqueado()) {
+            throw new ReglaNegocioException("Superaste el límite de " + ControlIntentosPago.MAX_INTENTOS_RECHAZADOS
+                    + " intentos de pago. Por seguridad el enlace está bloqueado. Vuelve a intentar en "
+                    + intentos.minutosRestantes(ahora) + " minuto(s) o comunícate con la empresa.");
+        }
         Valorizacion val = (bloquear
                 ? valorizacionPort.findByIdParaActualizar(comp.getIdValorizacion())
                 : valorizacionPort.findById(comp.getIdValorizacion()))
@@ -242,6 +261,25 @@ public class ProcesarPago {
             throw new ReglaNegocioException("La obra asociada se encuentra cerrada.");
         }
         return new ContextoEnlace(comp, val, obra);
+    }
+
+    /**
+     * Cuenta los rechazos del comprobante desde que se emitió o renovó su enlace.
+     */
+    public ControlIntentosPago.Estado estadoIntentos(Comprobante comp, LocalDateTime ahora) {
+        LocalDateTime desde = comp.getVenceEl() != null ? comp.getVenceEl().minusHours(horasVigenciaEnlace) : null;
+        return ControlIntentosPago.evaluar(pagoPort.findFechasRechazosDesde(comp.getIdComprobante(), desde), ahora);
+    }
+
+    private String mensajeTrasRechazo(Comprobante comp, String motivo) {
+        LocalDateTime ahora = LocalDateTime.now(clock);
+        ControlIntentosPago.Estado intentos = estadoIntentos(comp, ahora);
+        String base = motivo == null || motivo.isBlank() ? "Pago rechazado." : motivo.trim();
+        if (intentos.bloqueado()) {
+            return base + " Llegaste al límite de " + ControlIntentosPago.MAX_INTENTOS_RECHAZADOS
+                    + " intentos: el enlace queda bloqueado por " + ControlIntentosPago.BLOQUEO.toMinutes() + " minutos.";
+        }
+        return base + " Te quedan " + intentos.intentosRestantes() + " intento(s).";
     }
 
     private BigDecimal obtenerTipoCambioUsdPen() {

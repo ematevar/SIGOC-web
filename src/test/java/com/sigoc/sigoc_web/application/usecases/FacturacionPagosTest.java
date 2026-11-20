@@ -156,6 +156,74 @@ class FacturacionPagosTest {
     }
 
     @Test
+    void cincoRechazosBloqueanElEnlaceTreintaMinutosYRenovarLoReinicia() {
+        RelojMovil reloj = new RelojMovil();
+        ObraPort obraPort = obraOperable(1);
+        PartidasFake partidaPort = new PartidasFake(1);
+        AvancesFake avancePort = new AvancesFake();
+        avancePort.datos.add(new AvancePartida(1, 1, LocalDate.of(2026, 10, 15), new BigDecimal("50.00"), "Ok", 2, true, null));
+        avancePort.datos.add(new AvancePartida(2, 2, LocalDate.of(2026, 10, 20), new BigDecimal("50.00"), "Ok", 2, true, null));
+        ValorizacionesFake valPort = new ValorizacionesFake();
+        ComprobantesFake compPort = new ComprobantesFake();
+        PagosFake pagoPort = new PagosFake();
+        IngresosFake ingresoPort = new IngresosFake();
+
+        RegistrarValorizacion regVal = new RegistrarValorizacion(valPort, obraPort, partidaPort, avancePort, reloj);
+        EmitirComprobante emComp = new EmitirComprobante(compPort, valPort, reloj, 72);
+        ProcesarPago procPago = new ProcesarPago(pagoPort, obraPort, valPort, compPort, ingresoPort,
+                new TipoCambioFake(), new PasarelaFake(), reloj, 72);
+        ConsultarEnlacePagoPublico consulta = new ConsultarEnlacePagoPublico(compPort, valPort, obraPort,
+                new ClientesFake(), new TipoCambioFake(), new PasarelaFake(), reloj, pagoPort, 72);
+
+        Valorizacion val = regVal.ejecutar(RESIDENTE, 1, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31), null);
+        Comprobante comp = emComp.ejecutar(CONTADOR, val.getIdValorizacion(), null, null);
+        String codigo = comp.getCodigoPago();
+
+        // 4 rechazos: avisa cuántos intentos quedan
+        for (int i = 1; i <= 4; i++) {
+            reloj.avanzar(Duration.ofMinutes(1));
+            PagoRechazadoException ex = assertThrows(PagoRechazadoException.class, () ->
+                    procPago.cobrarTarjetaSimuladaPublica(codigo, "4000000000000002", "JUAN PEREZ", "12/28", "123"));
+            assertTrue(ex.getMessage().contains("Te quedan " + (5 - i)), ex.getMessage());
+        }
+        assertEquals(1, consulta.ejecutar(codigo).intentosRestantes());
+
+        // 5to rechazo: se bloquea
+        reloj.avanzar(Duration.ofMinutes(1));
+        PagoRechazadoException quinto = assertThrows(PagoRechazadoException.class, () ->
+                procPago.cobrarTarjetaSimuladaPublica(codigo, "4000000000000002", "JUAN PEREZ", "12/28", "123"));
+        assertTrue(quinto.getMessage().contains("bloqueado"), quinto.getMessage());
+        assertTrue(consulta.ejecutar(codigo).bloqueado());
+
+        // Bloqueado: ni tarjeta válida ni PayPal pasan, y no se guarda otro intento
+        int intentosGuardados = pagoPort.datos.size();
+        reloj.avanzar(Duration.ofMinutes(10));
+        assertThrows(ReglaNegocioException.class, () ->
+                procPago.cobrarTarjetaSimuladaPublica(codigo, "4111111111111111", "JUAN PEREZ", "12/28", "123"));
+        assertThrows(ReglaNegocioException.class, () ->
+                procPago.crearOrdenPayPalPublica(codigo, "http://ok", "http://cancel"));
+        assertEquals(intentosGuardados, pagoPort.datos.size());
+
+        // Pasados 30 minutos vuelve a tener 5 intentos
+        reloj.avanzar(Duration.ofMinutes(21));
+        assertFalse(consulta.ejecutar(codigo).bloqueado());
+        assertEquals(5, consulta.ejecutar(codigo).intentosRestantes());
+
+        // Otro rechazo y luego renovar: el enlace nuevo empieza de cero
+        reloj.avanzar(Duration.ofMinutes(1));
+        assertThrows(PagoRechazadoException.class, () ->
+                procPago.cobrarTarjetaSimuladaPublica(codigo, "4000000000000002", "JUAN PEREZ", "12/28", "123"));
+        assertEquals(4, consulta.ejecutar(codigo).intentosRestantes());
+        reloj.avanzar(Duration.ofMinutes(1));
+        Comprobante renovado = emComp.renovarEnlace(CONTADOR, comp.getIdComprobante());
+        assertEquals(5, consulta.ejecutar(renovado.getCodigoPago()).intentosRestantes());
+
+        // Con el enlace renovado el pago aprobado funciona
+        Pago pago = procPago.cobrarTarjetaSimuladaPublica(renovado.getCodigoPago(), "4111111111111111", "JUAN PEREZ", "12/28", "123");
+        assertEquals("APROBADO", pago.getEstado());
+    }
+
+    @Test
     void contadorActualizaTipoCambioYResidenteNo() {
         TipoCambioFake tcPort = new TipoCambioFake();
         GestionarTipoCambio tcUc = new GestionarTipoCambio(tcPort, FIJO);
@@ -255,7 +323,23 @@ class FacturacionPagosTest {
         @Override public Optional<Pago> findByIdCapturaExterna(String cap) {
             return datos.values().stream().filter(p -> Objects.equals(p.getIdCapturaExterna(), cap)).findFirst();
         }
+        @Override public List<LocalDateTime> findFechasRechazosDesde(Integer idComp, LocalDateTime desde) {
+            return datos.values().stream()
+                    .filter(p -> "RECHAZADO".equals(p.getEstado()) && Objects.equals(p.getIdComprobante(), idComp))
+                    .map(Pago::getFechaPago)
+                    .filter(f -> desde == null || !f.isBefore(desde))
+                    .sorted()
+                    .toList();
+        }
         @Override public Pago guardar(Pago p) { if (p.getIdPago() == null) p.setIdPago(seq++); datos.put(p.getIdPago(), p); return p; }
+    }
+
+    private static final class RelojMovil extends Clock {
+        Instant ahora = Instant.parse("2026-11-10T15:00:00Z");
+        void avanzar(Duration d) { ahora = ahora.plus(d); }
+        @Override public ZoneId getZone() { return ZoneOffset.UTC; }
+        @Override public Clock withZone(ZoneId zone) { return this; }
+        @Override public Instant instant() { return ahora; }
     }
 
     private static final class IngresosFake implements IngresoPort {

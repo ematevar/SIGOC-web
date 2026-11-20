@@ -86,6 +86,14 @@
                 mostrarMensaje('El enlace de pago ha expirado (vigencia máxima de 72 horas). Solicita su renovación al área contable.', 'error');
                 return;
             }
+            if (d.bloqueado) {
+                const hora = d.bloqueadoHasta ? d.bloqueadoHasta.replace('T', ' ').slice(11, 16) : '';
+                mostrarMensaje(`Superaste el límite de 5 intentos de pago. Por seguridad el enlace está bloqueado${hora ? ' hasta las ' + hora : ''}. Vuelve a intentar más tarde o comunícate con la empresa.`, 'error');
+                return;
+            }
+            if (d.intentosRestantes < 5) {
+                mostrarMensaje(`Hubo pagos rechazados en este enlace. Te quedan ${d.intentosRestantes} intento(s).`, 'warning');
+            }
 
             pubMetodosCard.classList.remove('hidden');
             if (!d.paypalHabilitado) {
@@ -156,6 +164,9 @@
             await cargarDetalleSinLoops();
         } catch (err) {
             mostrarMensaje(err.message, 'error');
+            if (/bloquead/i.test(err.message)) {
+                pubMetodosCard.classList.add('hidden');
+            }
         } finally {
             btn.disabled = false;
         }

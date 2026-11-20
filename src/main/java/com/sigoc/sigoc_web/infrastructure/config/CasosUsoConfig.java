@@ -374,9 +374,10 @@ public class CasosUsoConfig {
     @Bean
     public ProcesarPago procesarPago(PagoPort pagoPort, ObraPort obraPort, ValorizacionPort valorizacionPort,
                                      ComprobantePort comprobantePort, IngresoPort ingresoPort,
-                                     TipoCambioPort tipoCambioPort, PasarelaPagoPort pasarelaPagoPort, Clock clock) {
+                                     TipoCambioPort tipoCambioPort, PasarelaPagoPort pasarelaPagoPort, Clock clock,
+                                     @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia) {
         return new ProcesarPago(pagoPort, obraPort, valorizacionPort, comprobantePort, ingresoPort,
-                tipoCambioPort, pasarelaPagoPort, clock);
+                tipoCambioPort, pasarelaPagoPort, clock, horasVigencia);
     }
 
     @Bean
@@ -384,9 +385,11 @@ public class CasosUsoConfig {
                                                                      ValorizacionPort valorizacionPort,
                                                                      ObraPort obraPort, ClientePort clientePort,
                                                                      TipoCambioPort tipoCambioPort,
-                                                                     PasarelaPagoPort pasarelaPagoPort, Clock clock) {
+                                                                     PasarelaPagoPort pasarelaPagoPort, Clock clock,
+                                                                     PagoPort pagoPort,
+                                                                     @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia) {
         return new ConsultarEnlacePagoPublico(comprobantePort, valorizacionPort, obraPort, clientePort,
-                tipoCambioPort, pasarelaPagoPort, clock);
+                tipoCambioPort, pasarelaPagoPort, clock, pagoPort, horasVigencia);
     }
 
     @Bean

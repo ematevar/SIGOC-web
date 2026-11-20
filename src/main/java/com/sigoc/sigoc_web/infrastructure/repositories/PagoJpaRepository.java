@@ -4,6 +4,7 @@ import com.sigoc.sigoc_web.infrastructure.entities.PagoEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,4 +18,7 @@ public interface PagoJpaRepository extends JpaRepository<PagoEntity, Integer> {
     Optional<PagoEntity> findByCodigoOperacion(String codigoOperacion);
 
     Optional<PagoEntity> findByIdCapturaExterna(String idCapturaExterna);
+
+    List<PagoEntity> findByIdComprobanteAndEstadoAndActivoTrueAndFechaPagoGreaterThanEqualOrderByFechaPagoAsc(
+            Integer idComprobante, String estado, LocalDateTime desde);
 }

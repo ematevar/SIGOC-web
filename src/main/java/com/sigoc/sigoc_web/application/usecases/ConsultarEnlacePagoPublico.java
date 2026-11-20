@@ -3,6 +3,7 @@ package com.sigoc.sigoc_web.application.usecases;
 import com.sigoc.sigoc_web.domain.exceptions.RecursoNoEncontradoException;
 import com.sigoc.sigoc_web.domain.models.*;
 import com.sigoc.sigoc_web.domain.ports.out.*;
+import com.sigoc.sigoc_web.domain.services.ControlIntentosPago;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -21,10 +22,20 @@ public class ConsultarEnlacePagoPublico {
     private final TipoCambioPort tipoCambioPort;
     private final PasarelaPagoPort pasarelaPagoPort;
     private final Clock clock;
+    private final PagoPort pagoPort;
+    private final int horasVigenciaEnlace;
 
     public ConsultarEnlacePagoPublico(ComprobantePort comprobantePort, ValorizacionPort valorizacionPort,
                                       ObraPort obraPort, ClientePort clientePort,
                                       TipoCambioPort tipoCambioPort, PasarelaPagoPort pasarelaPagoPort, Clock clock) {
+        this(comprobantePort, valorizacionPort, obraPort, clientePort, tipoCambioPort, pasarelaPagoPort, clock,
+                null, 72);
+    }
+
+    public ConsultarEnlacePagoPublico(ComprobantePort comprobantePort, ValorizacionPort valorizacionPort,
+                                      ObraPort obraPort, ClientePort clientePort,
+                                      TipoCambioPort tipoCambioPort, PasarelaPagoPort pasarelaPagoPort, Clock clock,
+                                      PagoPort pagoPort, int horasVigenciaEnlace) {
         this.comprobantePort = comprobantePort;
         this.valorizacionPort = valorizacionPort;
         this.obraPort = obraPort;
@@ -32,6 +43,8 @@ public class ConsultarEnlacePagoPublico {
         this.tipoCambioPort = tipoCambioPort;
         this.pasarelaPagoPort = pasarelaPagoPort;
         this.clock = clock;
+        this.pagoPort = pagoPort;
+        this.horasVigenciaEnlace = horasVigenciaEnlace;
     }
 
     public DetalleEnlacePublico ejecutar(String codigoPago) {
@@ -55,6 +68,14 @@ public class ConsultarEnlacePagoPublico {
         boolean expirado = !pagado && !comp.esEnlaceVigente(ahora);
         boolean paypalHabilitado = pasarelaPagoPort != null && pasarelaPagoPort.paypalHabilitado();
 
+        ControlIntentosPago.Estado intentos = new ControlIntentosPago.Estado(
+                false, null, ControlIntentosPago.MAX_INTENTOS_RECHAZADOS);
+        if (pagoPort != null && !pagado && !expirado) {
+            LocalDateTime desde = comp.getVenceEl() != null ? comp.getVenceEl().minusHours(horasVigenciaEnlace) : null;
+            intentos = ControlIntentosPago.evaluar(
+                    pagoPort.findFechasRechazosDesde(comp.getIdComprobante(), desde), ahora);
+        }
+
         return new DetalleEnlacePublico(
                 comp.getSerieNumero(),
                 comp.getFechaEmision() != null ? comp.getFechaEmision().toString() : "-",
@@ -73,7 +94,10 @@ public class ConsultarEnlacePagoPublico {
                 val != null ? val.getPeriodo() : "-",
                 val != null ? val.getPorcentajeAvancePeriodo() : BigDecimal.ZERO,
                 cliente != null ? cliente.getNombreRazonSocial()
-                        : (obra != null && obra.getCliente() != null ? obra.getCliente() : "-")
+                        : (obra != null && obra.getCliente() != null ? obra.getCliente() : "-"),
+                intentos.bloqueado(),
+                intentos.bloqueadoHasta(),
+                intentos.intentosRestantes()
         );
     }
 
@@ -94,7 +118,10 @@ public class ConsultarEnlacePagoPublico {
             Integer numeroValorizacion,
             String periodoValorizacion,
             BigDecimal porcentajeAvancePeriodo,
-            String clienteNombre
+            String clienteNombre,
+            boolean bloqueado,
+            LocalDateTime bloqueadoHasta,
+            int intentosRestantes
     ) {
     }
 }

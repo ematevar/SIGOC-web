@@ -7,6 +7,7 @@ import com.sigoc.sigoc_web.infrastructure.repositories.PagoJpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,6 +48,18 @@ public class PagoJpaAdapter implements PagoPort {
     @Transactional(readOnly = true)
     public Optional<Pago> findByIdCapturaExterna(String idCapturaExterna) {
         return repository.findByIdCapturaExterna(idCapturaExterna).map(this::toModel);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LocalDateTime> findFechasRechazosDesde(Integer idComprobante, LocalDateTime desde) {
+        if (idComprobante == null) {
+            return List.of();
+        }
+        return repository
+                .findByIdComprobanteAndEstadoAndActivoTrueAndFechaPagoGreaterThanEqualOrderByFechaPagoAsc(
+                        idComprobante, "RECHAZADO", desde != null ? desde : LocalDateTime.of(2000, 1, 1, 0, 0))
+                .stream().map(PagoEntity::getFechaPago).toList();
     }
 
     @Override
