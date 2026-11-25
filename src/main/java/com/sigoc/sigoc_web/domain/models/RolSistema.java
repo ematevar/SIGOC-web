@@ -3,10 +3,11 @@ package com.sigoc.sigoc_web.domain.models;
 import java.util.Optional;
 
 /**
- * Los cuatro perfiles definidos en el SRS Web (RF-01).
+ * Los cinco perfiles definidos bajo segregación de funciones ISO/IEC 27001 A.5.3.
  */
 public enum RolSistema {
-    ADMIN("Administrador"),
+    ADMIN("Administrador de Sistemas"),
+    GERENTE("Gerente de Obras"),
     RESIDENTE("Residente de Obra"),
     ALMACENERO("Almacenero"),
     CONTADOR("Contador");
@@ -32,6 +33,9 @@ public enum RolSistema {
         String r = nombreRol.trim().toUpperCase();
         if (r.contains("ADMIN")) {
             return Optional.of(ADMIN);
+        }
+        if (r.contains("GERENTE")) {
+            return Optional.of(GERENTE);
         }
         if (r.contains("RESIDENTE") || r.contains("INGENIERO")) {
             return Optional.of(RESIDENTE);
