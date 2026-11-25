@@ -4,9 +4,15 @@ import com.sigoc.sigoc_web.domain.exceptions.AccesoDenegadoException;
 import com.sigoc.sigoc_web.domain.exceptions.PagoRechazadoException;
 import com.sigoc.sigoc_web.domain.exceptions.RecursoNoEncontradoException;
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
+import com.sigoc.sigoc_web.domain.models.AuditoriaEvento;
+import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.out.AuditoriaEventoPort;
 import com.sigoc.sigoc_web.infrastructure.controllers.dto.ErrorResponse;
+import com.sigoc.sigoc_web.infrastructure.security.SesionHttp;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +22,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import java.time.Clock;
 import java.util.stream.Collectors;
 
 /**
@@ -26,6 +33,16 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    private final AuditoriaEventoPort auditoriaPort;
+    private final Clock clock;
+
+    @Autowired
+    public GlobalExceptionHandler(@Autowired(required = false) AuditoriaEventoPort auditoriaPort,
+                                  @Autowired(required = false) Clock clock) {
+        this.auditoriaPort = auditoriaPort;
+        this.clock = clock != null ? clock : Clock.systemDefaultZone();
+    }
 
     @ExceptionHandler(ReglaNegocioException.class)
     public ResponseEntity<ErrorResponse> reglaNegocio(ReglaNegocioException ex) {
@@ -38,7 +55,17 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AccesoDenegadoException.class)
-    public ResponseEntity<ErrorResponse> accesoDenegado(AccesoDenegadoException ex) {
+    public ResponseEntity<ErrorResponse> accesoDenegado(AccesoDenegadoException ex, HttpServletRequest request) {
+        if (auditoriaPort != null) {
+            try {
+                UsuarioSesion actor = request != null ? SesionHttp.usuario(request) : null;
+                String ruta = request != null ? request.getMethod() + " " + request.getRequestURI() : "desconocida";
+                auditoriaPort.registrar(AuditoriaEvento.crear(
+                        clock, actor, "ACCESO_DENEGADO_403", "seguridad", ruta, "DENEGADO", ex.getMessage()));
+            } catch (Exception auditEx) {
+                log.warn("No se pudo persistir evento de auditoría 403: {}", auditEx.getMessage());
+            }
+        }
         return respuesta(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
