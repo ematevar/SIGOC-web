@@ -1,6 +1,6 @@
 package com.sigoc.sigoc_web.infrastructure.controllers.dto;
 
-import com.sigoc.sigoc_web.application.usecases.RegistrarValorizacion.ResumenCalculoValorizacion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarValorizacionUseCase.ResumenCalculoValorizacion;
 import com.sigoc.sigoc_web.domain.models.Cliente;
 import com.sigoc.sigoc_web.domain.models.Comprobante;
 import com.sigoc.sigoc_web.domain.models.Pago;

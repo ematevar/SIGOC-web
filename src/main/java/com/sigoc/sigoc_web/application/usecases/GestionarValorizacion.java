@@ -1,7 +1,12 @@
 package com.sigoc.sigoc_web.application.usecases;
 
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
-import com.sigoc.sigoc_web.domain.models.*;
+import com.sigoc.sigoc_web.domain.models.AvancePartida;
+import com.sigoc.sigoc_web.domain.models.Obra;
+import com.sigoc.sigoc_web.domain.models.Partida;
+import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.models.Valorizacion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarValorizacionUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.AvancePartidaPort;
 import com.sigoc.sigoc_web.domain.ports.out.ObraPort;
 import com.sigoc.sigoc_web.domain.ports.out.PartidaPort;
@@ -20,10 +25,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * RF-18 / RN-20..RN-22: Calcula automáticamente e inmutabiliza valorizaciones por rango de fechas,
- * avance físico acumulado ponderado y presupuesto contractual (subtotal + IGV 18%).
+ * CU-18: Previsualización, registro y consulta de valorizaciones de obra (subtotal + IGV 18%).
  */
-public class RegistrarValorizacion {
+public class GestionarValorizacion implements GestionarValorizacionUseCase {
 
     private static final BigDecimal CIEN = new BigDecimal("100.00");
     private static final BigDecimal TASA_IGV = new BigDecimal("0.18");
@@ -34,11 +38,7 @@ public class RegistrarValorizacion {
     private final AvancePartidaPort avancePartidaPort;
     private final Clock clock;
 
-    public RegistrarValorizacion(ValorizacionPort valorizacionPort, ObraPort obraPort, Clock clock) {
-        this(valorizacionPort, obraPort, null, null, clock);
-    }
-
-    public RegistrarValorizacion(ValorizacionPort valorizacionPort, ObraPort obraPort,
+    public GestionarValorizacion(ValorizacionPort valorizacionPort, ObraPort obraPort,
                                  PartidaPort partidaPort, AvancePartidaPort avancePartidaPort, Clock clock) {
         this.valorizacionPort = valorizacionPort;
         this.obraPort = obraPort;
@@ -47,16 +47,24 @@ public class RegistrarValorizacion {
         this.clock = clock;
     }
 
+    @Override
+    public List<Valorizacion> listar(UsuarioSesion actor, Integer idObra) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.VER_VALORIZACIONES);
+        return idObra != null ? valorizacionPort.findActivasByObra(idObra) : valorizacionPort.findAllActivas();
+    }
+
+    @Override
     public ResumenCalculoValorizacion previsualizar(UsuarioSesion actor, Integer idObra,
-                                                      LocalDate periodoInicio, LocalDate periodoFin) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.CONTADOR);
+                                                    LocalDate periodoInicio, LocalDate periodoFin) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.REGISTRAR_VALORIZACION);
         Obra obra = validarObraYPeriodo(idObra, periodoInicio, periodoFin, false);
         return calcularResumen(obra, periodoInicio, periodoFin);
     }
 
-    public Valorizacion ejecutar(UsuarioSesion actor, Integer idObra,
-                                 LocalDate periodoInicio, LocalDate periodoFin, LocalDate fechaEmision) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE, RolSistema.CONTADOR);
+    @Override
+    public Valorizacion registrar(UsuarioSesion actor, Integer idObra,
+                                  LocalDate periodoInicio, LocalDate periodoFin, LocalDate fechaEmision) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.REGISTRAR_VALORIZACION);
         Obra obra = validarObraYPeriodo(idObra, periodoInicio, periodoFin, true);
         ResumenCalculoValorizacion calc = calcularResumen(obra, periodoInicio, periodoFin);
 
@@ -186,20 +194,5 @@ public class RegistrarValorizacion {
         return new ResumenCalculoValorizacion(
                 obra.getIdObra(), obra.getNombre(), nextNum, inicio, fin,
                 avanceAcumulado, yaValorizado, delta, subtotal, igv, total);
-    }
-
-    public record ResumenCalculoValorizacion(
-            Integer idObra,
-            String nombreObra,
-            int numeroSiguiente,
-            LocalDate periodoInicio,
-            LocalDate periodoFin,
-            BigDecimal avanceAcumulado,
-            BigDecimal avanceYaValorizado,
-            BigDecimal porcentajeAvancePeriodo,
-            BigDecimal subtotal,
-            BigDecimal igv,
-            BigDecimal total
-    ) {
     }
 }
