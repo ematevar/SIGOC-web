@@ -1,8 +1,12 @@
 package com.sigoc.sigoc_web.application.usecases;
 
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
-import com.sigoc.sigoc_web.domain.models.*;
-import com.sigoc.sigoc_web.domain.ports.in.RegistrarConsumoUseCase;
+import com.sigoc.sigoc_web.domain.models.ConsumoMaterial;
+import com.sigoc.sigoc_web.domain.models.Material;
+import com.sigoc.sigoc_web.domain.models.Obra;
+import com.sigoc.sigoc_web.domain.models.Partida;
+import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarConsumoUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.ConsumoPort;
 import com.sigoc.sigoc_web.domain.ports.out.MaterialPort;
 import com.sigoc.sigoc_web.domain.ports.out.ObraPort;
@@ -13,12 +17,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
- * RF-08: registra un consumo de material en una partida de obra activa, descuenta stock
- * y señala si el stock resultante quedó igual o por debajo del stock mínimo.
+ * CU-08: Registro de consumos de materiales por partida y control de stock mínimo.
  */
-public class RegistrarConsumo implements RegistrarConsumoUseCase {
+public class GestionarConsumo implements GestionarConsumoUseCase {
 
     private final ConsumoPort consumoPort;
     private final MaterialPort materialPort;
@@ -26,7 +30,7 @@ public class RegistrarConsumo implements RegistrarConsumoUseCase {
     private final ObraPort obraPort;
     private final Clock clock;
 
-    public RegistrarConsumo(ConsumoPort consumoPort, MaterialPort materialPort,
+    public GestionarConsumo(ConsumoPort consumoPort, MaterialPort materialPort,
                             PartidaPort partidaPort, ObraPort obraPort, Clock clock) {
         this.consumoPort = consumoPort;
         this.materialPort = materialPort;
@@ -35,9 +39,16 @@ public class RegistrarConsumo implements RegistrarConsumoUseCase {
         this.clock = clock;
     }
 
-    public Resultado ejecutar(UsuarioSesion actor, Integer idMaterial, Integer idPartida,
-                              LocalDate fechaConsumo, BigDecimal cantidad) {
-        PoliticaAcceso.verificar(actor, RolSistema.RESIDENTE);
+    @Override
+    public List<ConsumoMaterial> listar(UsuarioSesion actor, Integer idPartida) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.VER_CONSUMOS);
+        return idPartida != null ? consumoPort.findActivosByPartida(idPartida) : consumoPort.findAllActivos();
+    }
+
+    @Override
+    public ResultadoConsumo registrar(UsuarioSesion actor, Integer idMaterial, Integer idPartida,
+                                      LocalDate fechaConsumo, BigDecimal cantidad) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.REGISTRAR_CONSUMOS);
         if (idMaterial == null || idMaterial <= 0 || idPartida == null || idPartida <= 0) {
             throw new ReglaNegocioException("Selecciona material y partida.");
         }
@@ -76,9 +87,12 @@ public class RegistrarConsumo implements RegistrarConsumoUseCase {
 
         boolean alerta = material.getStockMinimo() != null
                 && nuevoStock.compareTo(material.getStockMinimo()) <= 0;
-        return new Resultado(guardado, nuevoStock, alerta);
+        return new ResultadoConsumo(guardado, nuevoStock, alerta);
     }
 
-    public record Resultado(ConsumoMaterial consumo, BigDecimal stockResultante, boolean alertaStockMinimo) {
+    @Override
+    public BigDecimal obtenerAcumulado(UsuarioSesion actor, Integer idPartida, Integer idMaterial) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.VER_CONSUMOS);
+        return consumoPort.sumaCantidadPorPartidaYMaterial(idPartida, idMaterial);
     }
 }
