@@ -1,9 +1,8 @@
 package com.sigoc.sigoc_web.infrastructure.controllers;
 
-import com.sigoc.sigoc_web.application.usecases.GestionarTipoCambio;
 import com.sigoc.sigoc_web.domain.models.TipoCambio;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
-import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarTipoCambioUseCase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
@@ -12,20 +11,22 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * CU-21: Consulta y actualización del tipo de cambio USD/PEN.
+ */
 @RestController
 @RequestMapping("/api/tipo-cambio")
 public class TipoCambioController {
 
-    private final GestionarTipoCambio gestionarTipoCambio;
+    private final GestionarTipoCambioUseCase gestionarTipoCambio;
 
-    public TipoCambioController(GestionarTipoCambio gestionarTipoCambio) {
+    public TipoCambioController(GestionarTipoCambioUseCase gestionarTipoCambio) {
         this.gestionarTipoCambio = gestionarTipoCambio;
     }
 
     @GetMapping
     public TipoCambioResponse obtener(UsuarioSesion actor) {
-        PoliticaAcceso.verificar(actor, com.sigoc.sigoc_web.domain.models.RolSistema.values());
-        return TipoCambioResponse.de(gestionarTipoCambio.obtenerActual());
+        return TipoCambioResponse.de(gestionarTipoCambio.obtenerActual(actor));
     }
 
     @PutMapping
