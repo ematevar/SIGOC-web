@@ -1,9 +1,8 @@
 package com.sigoc.sigoc_web.infrastructure.controllers;
 
-import com.sigoc.sigoc_web.application.usecases.CambiarClave;
-import com.sigoc.sigoc_web.application.usecases.GenerarCaptcha;
-import com.sigoc.sigoc_web.application.usecases.IniciarSesion;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.AutenticarUsuarioUseCase;
+import com.sigoc.sigoc_web.domain.ports.in.CambiarClaveUseCase;
 import com.sigoc.sigoc_web.infrastructure.controllers.dto.AuthDtos.*;
 import com.sigoc.sigoc_web.infrastructure.security.SesionHttp;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,25 +12,23 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * RF-01: captcha, inicio/cierre de sesión y cambio de contraseña.
+ * CU-01 y CU-02: captcha, inicio/cierre de sesión y cambio de contraseña.
  */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final GenerarCaptcha generarCaptcha;
-    private final IniciarSesion iniciarSesion;
-    private final CambiarClave cambiarClave;
+    private final AutenticarUsuarioUseCase autenticarUsuario;
+    private final CambiarClaveUseCase cambiarClave;
 
-    public AuthController(GenerarCaptcha generarCaptcha, IniciarSesion iniciarSesion, CambiarClave cambiarClave) {
-        this.generarCaptcha = generarCaptcha;
-        this.iniciarSesion = iniciarSesion;
+    public AuthController(AutenticarUsuarioUseCase autenticarUsuario, CambiarClaveUseCase cambiarClave) {
+        this.autenticarUsuario = autenticarUsuario;
         this.cambiarClave = cambiarClave;
     }
 
     @GetMapping("/captcha")
     public CaptchaResponse captcha(HttpServletRequest request) {
-        String codigo = generarCaptcha.ejecutar();
+        String codigo = autenticarUsuario.generarCaptcha();
         request.getSession(true).setAttribute(SesionHttp.ATTR_CAPTCHA, codigo);
         return new CaptchaResponse(codigo);
     }
@@ -40,10 +37,9 @@ public class AuthController {
     public SesionResponse login(@Valid @RequestBody LoginRequest body, HttpServletRequest request) {
         HttpSession session = request.getSession(true);
         String esperado = (String) session.getAttribute(SesionHttp.ATTR_CAPTCHA);
-        // El captcha es de un solo uso: se descarta tras cada intento.
         session.removeAttribute(SesionHttp.ATTR_CAPTCHA);
-        UsuarioSesion usuario = iniciarSesion.ejecutar(body.usuario(), body.clave(), esperado, body.captcha());
-        request.changeSessionId(); // previene fijación de sesión
+        UsuarioSesion usuario = autenticarUsuario.iniciarSesion(body.usuario(), body.clave(), esperado, body.captcha());
+        request.changeSessionId();
         SesionHttp.guardarUsuario(request, usuario);
         SesionHttp.regenerarCsrfToken(request);
         return aRespuesta(usuario);
