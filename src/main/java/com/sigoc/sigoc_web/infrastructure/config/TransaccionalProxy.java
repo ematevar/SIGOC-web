@@ -1,5 +1,6 @@
 package com.sigoc.sigoc_web.infrastructure.config;
 
+import com.sigoc.sigoc_web.domain.annotations.OperacionSoloLectura;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
@@ -8,32 +9,23 @@ import org.springframework.transaction.support.DefaultTransactionDefinition;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.Set;
 
 /**
  * Decorador transaccional en la frontera de cableado de infraestructura.
  * Permite que los casos de uso de aplicación permanezcan libres de Spring/Jakarta
  * y que los controladores web no declaren @Transactional.
+ * Toda operación es lectura-escritura por defecto salvo que el método del puerto
+ * declare explícitamente {@link OperacionSoloLectura}.
  */
 public final class TransaccionalProxy {
-
-    private static final Set<String> PREFIJOS_LECTURA = Set.of(
-            "listar", "obtener", "consultar", "previsualizar", "generar", "exportar", "buscar", "ejecutar"
-    );
 
     private TransaccionalProxy() {
     }
 
-    public static <T> T envolver(Class<T> interfazPuerto, T implementacion,
-                                 PlatformTransactionManager txManager,
-                                 Class<? extends Throwable>... sinRollbackPara) {
-        return envolver(interfazPuerto, implementacion, txManager, false, sinRollbackPara);
-    }
-
+    @SafeVarargs
     @SuppressWarnings("unchecked")
     public static <T> T envolver(Class<T> interfazPuerto, T implementacion,
                                  PlatformTransactionManager txManager,
-                                 boolean forzarLecturaEscrituraEnEjecutar,
                                  Class<? extends Throwable>... sinRollbackPara) {
         return (T) Proxy.newProxyInstance(
                 interfazPuerto.getClassLoader(),
@@ -44,7 +36,7 @@ public final class TransaccionalProxy {
                     }
                     DefaultTransactionDefinition def = new DefaultTransactionDefinition();
                     def.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED);
-                    def.setReadOnly(esSoloLectura(method, forzarLecturaEscrituraEnEjecutar));
+                    def.setReadOnly(esSoloLectura(method));
                     TransactionStatus status = txManager.getTransaction(def);
                     try {
                         Object resultado = method.invoke(implementacion, args);
@@ -68,12 +60,8 @@ public final class TransaccionalProxy {
         );
     }
 
-    private static boolean esSoloLectura(Method method, boolean forzarLecturaEscrituraEnEjecutar) {
-        String nombre = method.getName();
-        if (forzarLecturaEscrituraEnEjecutar && "ejecutar".equals(nombre)) {
-            return false;
-        }
-        return PREFIJOS_LECTURA.stream().anyMatch(nombre::startsWith);
+    static boolean esSoloLectura(Method method) {
+        return method.isAnnotationPresent(OperacionSoloLectura.class);
     }
 
     private static boolean debeHacerCommit(Throwable causa, Class<? extends Throwable>[] sinRollbackPara) {

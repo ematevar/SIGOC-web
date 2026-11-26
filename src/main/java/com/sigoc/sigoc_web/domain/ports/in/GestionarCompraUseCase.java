@@ -1,5 +1,7 @@
 package com.sigoc.sigoc_web.domain.ports.in;
 
+import com.sigoc.sigoc_web.domain.annotations.OperacionSoloLectura;
+
 import com.sigoc.sigoc_web.domain.models.CompraMaterial;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
 
@@ -15,6 +17,7 @@ public interface GestionarCompraUseCase {
     record ItemCompra(Integer idMaterial, BigDecimal cantidad, BigDecimal precioUnitario) {
     }
 
+    @OperacionSoloLectura
     List<CompraMaterial> listar(UsuarioSesion actor);
 
     CompraMaterial registrar(UsuarioSesion actor, Integer idProveedor, Integer idObra,

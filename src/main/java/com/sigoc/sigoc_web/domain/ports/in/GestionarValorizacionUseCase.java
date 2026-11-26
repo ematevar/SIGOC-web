@@ -1,5 +1,7 @@
 package com.sigoc.sigoc_web.domain.ports.in;
 
+import com.sigoc.sigoc_web.domain.annotations.OperacionSoloLectura;
+
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
 import com.sigoc.sigoc_web.domain.models.Valorizacion;
 
@@ -27,8 +29,10 @@ public interface GestionarValorizacionUseCase {
     ) {
     }
 
+    @OperacionSoloLectura
     List<Valorizacion> listar(UsuarioSesion actor, Integer idObra);
 
+    @OperacionSoloLectura
     ResumenCalculoValorizacion previsualizar(UsuarioSesion actor, Integer idObra,
                                              LocalDate periodoInicio, LocalDate periodoFin);
 

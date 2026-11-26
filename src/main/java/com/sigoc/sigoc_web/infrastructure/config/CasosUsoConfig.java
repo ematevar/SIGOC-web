@@ -47,7 +47,7 @@ public class CasosUsoConfig {
                                                    AuditoriaEventoPort auditoriaPort, Clock clock,
                                                    PlatformTransactionManager txManager) {
         return TransaccionalProxy.envolver(CambiarClaveUseCase.class,
-                new CambiarClave(usuarioPort, hasher, auditoriaPort, clock), txManager, true);
+                new CambiarClave(usuarioPort, hasher, auditoriaPort, clock), txManager);
     }
 
     @Bean

@@ -1,5 +1,7 @@
 package com.sigoc.sigoc_web.domain.ports.in;
 
+import com.sigoc.sigoc_web.domain.annotations.OperacionSoloLectura;
+
 import com.sigoc.sigoc_web.domain.models.Obra;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
 
@@ -11,6 +13,7 @@ import java.util.List;
  * CU-03: Gestión del ciclo de vida de obras civiles y cierre formal.
  */
 public interface GestionarObraUseCase {
+    @OperacionSoloLectura
     List<Obra> listar(UsuarioSesion actor);
 
     Obra guardar(UsuarioSesion actor, Integer idObra, Integer idCliente,

@@ -1,5 +1,7 @@
 package com.sigoc.sigoc_web.domain.ports.in;
 
+import com.sigoc.sigoc_web.domain.annotations.OperacionSoloLectura;
+
 import com.sigoc.sigoc_web.domain.models.Asistencia;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
 
@@ -15,6 +17,7 @@ public interface GestionarAsistenciaUseCase {
     record FilaAsistencia(Integer idEmpleado, String estado, LocalTime horaEntrada, LocalTime horaSalida) {
     }
 
+    @OperacionSoloLectura
     List<Asistencia> listar(UsuarioSesion actor, Integer idObra);
 
     Asistencia registrar(UsuarioSesion actor, Integer idEmpleado, Integer idObra,

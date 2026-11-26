@@ -1,5 +1,7 @@
 package com.sigoc.sigoc_web.domain.ports.in;
 
+import com.sigoc.sigoc_web.domain.annotations.OperacionSoloLectura;
+
 import com.sigoc.sigoc_web.domain.models.Pago;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
 
@@ -39,11 +41,13 @@ public interface GestionarCobranzaUseCase {
         }
     }
 
+    @OperacionSoloLectura
     List<Pago> listarPagos(UsuarioSesion actor, Integer idObra);
 
     Pago registrarPagoInterno(UsuarioSesion actor, Integer idObra, Integer idValorizacion,
                               Integer idComprobante, BigDecimal monto,
                               String metodoPago, String codigoOperacion);
 
+    @OperacionSoloLectura
     DetalleEnlacePublico consultarEnlacePublico(String codigoPago);
 }
