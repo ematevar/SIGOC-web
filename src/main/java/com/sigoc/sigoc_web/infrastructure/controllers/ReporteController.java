@@ -1,11 +1,10 @@
 package com.sigoc.sigoc_web.infrastructure.controllers;
 
-import com.sigoc.sigoc_web.application.usecases.ExportarReporte;
-import com.sigoc.sigoc_web.application.usecases.GenerarReporte;
 import com.sigoc.sigoc_web.domain.models.FormatoExportacion;
 import com.sigoc.sigoc_web.domain.models.Reporte;
 import com.sigoc.sigoc_web.domain.models.TipoReporte;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.GenerarReporteUseCase;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -19,18 +18,16 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 
 /**
- * RF-16: reportes gerenciales (Curva S, Consumo, Personal, Financiero) y exportación CSV/XLSX/PDF (solo Admin).
+ * CU-16: Reportes gerenciales y exportación CSV/XLSX/PDF (GERENTE y CONTADOR).
  */
 @RestController
 @RequestMapping("/api/reportes")
 public class ReporteController {
 
-    private final GenerarReporte generarReporte;
-    private final ExportarReporte exportarReporte;
+    private final GenerarReporteUseCase generarReporte;
 
-    public ReporteController(GenerarReporte generarReporte, ExportarReporte exportarReporte) {
+    public ReporteController(GenerarReporteUseCase generarReporte) {
         this.generarReporte = generarReporte;
-        this.exportarReporte = exportarReporte;
     }
 
     @GetMapping
@@ -39,7 +36,7 @@ public class ReporteController {
                            @RequestParam(required = false) Integer idObra,
                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
-        return generarReporte.ejecutar(actor, TipoReporte.desdeParametro(tipo), idObra, desde, hasta);
+        return generarReporte.generar(actor, TipoReporte.desdeParametro(tipo), idObra, desde, hasta);
     }
 
     @GetMapping("/exportar")
@@ -51,7 +48,7 @@ public class ReporteController {
                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
         TipoReporte tipoReporte = TipoReporte.desdeParametro(tipo);
         FormatoExportacion formatoExp = FormatoExportacion.desdeParametro(formato);
-        byte[] contenido = exportarReporte.ejecutar(actor, tipoReporte, formatoExp, idObra, desde, hasta);
+        byte[] contenido = generarReporte.exportar(actor, tipoReporte, formatoExp, idObra, desde, hasta);
 
         String nombreArchivo = "reporte_" + tipoReporte.name().toLowerCase() + "." + formatoExp.getExtension();
         return ResponseEntity.ok()
