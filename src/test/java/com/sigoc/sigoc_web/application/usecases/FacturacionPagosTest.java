@@ -21,6 +21,7 @@ class FacturacionPagosTest {
 
     private static final Clock FIJO = Clock.fixed(Instant.parse("2026-11-10T15:00:00Z"), ZoneOffset.UTC);
     private static final UsuarioSesion ADMIN = new UsuarioSesion(1, "admin", "Admin", RolSistema.ADMIN, false);
+    private static final UsuarioSesion GERENTE = new UsuarioSesion(5, "gerente", "Gerente", RolSistema.GERENTE, false);
     private static final UsuarioSesion RESIDENTE = new UsuarioSesion(2, "res", "Residente", RolSistema.RESIDENTE, false);
     private static final UsuarioSesion ALMACENERO = new UsuarioSesion(3, "alm", "Almacenero", RolSistema.ALMACENERO, false);
     private static final UsuarioSesion CONTADOR = new UsuarioSesion(4, "cont", "Contador", RolSistema.CONTADOR, false);
@@ -48,20 +49,22 @@ class FacturacionPagosTest {
     }
 
     @Test
-    void guardarClienteValidaDocumentosYDuplicadosSoloAdmin() {
+    void guardarClienteValidaDocumentosYDuplicadosSoloGerente() {
         ClientesFake clientePort = new ClientesFake();
-        GuardarCliente uc = new GuardarCliente(clientePort);
+        GestionarCliente uc = new GestionarCliente(clientePort);
 
         assertThrows(AccesoDenegadoException.class, () ->
-                uc.ejecutar(RESIDENTE, null, "DNI", "74859612", "Ana Torres", "952123456", null, null));
+                uc.guardar(RESIDENTE, null, "DNI", "74859612", "Ana Torres", "952123456", null, null));
+        assertThrows(AccesoDenegadoException.class, () ->
+                uc.guardar(ADMIN, null, "DNI", "74859612", "Ana Torres", "952123456", null, null));
 
         assertThrows(ReglaNegocioException.class, () ->
-                uc.ejecutar(ADMIN, null, "DNI", "74859612", "Ana 123", "952123456", null, null));
+                uc.guardar(GERENTE, null, "DNI", "74859612", "Ana 123", "952123456", null, null));
 
-        Cliente c = uc.ejecutar(ADMIN, null, "ruc", "20601234567", "Constructora Andes SAC", "952123456", "a@b.pe", "Lima");
+        Cliente c = uc.guardar(GERENTE, null, "ruc", "20601234567", "Constructora Andes SAC", "952123456", "a@b.pe", "Lima");
         assertEquals("RUC", c.getTipoDocumento());
         assertThrows(ReglaNegocioException.class, () ->
-                uc.ejecutar(ADMIN, null, "RUC", "20601234567", "Otra SAC", "952123456", null, null));
+                uc.guardar(GERENTE, null, "RUC", "20601234567", "Otra SAC", "952123456", null, null));
     }
 
     @Test
@@ -69,7 +72,6 @@ class FacturacionPagosTest {
         ObraPort obraPort = obraOperable(1);
         PartidasFake partidaPort = new PartidasFake(1);
         AvancesFake avancePort = new AvancesFake();
-        // Partida 1 (peso 60%) al 50% y Partida 2 (peso 40%) al 50% => Avance acumulado = 50%
         avancePort.datos.add(new AvancePartida(1, 1, LocalDate.of(2026, 10, 15), new BigDecimal("50.00"), "Ok", 2, true, null));
         avancePort.datos.add(new AvancePartida(2, 2, LocalDate.of(2026, 10, 20), new BigDecimal("50.00"), "Ok", 2, true, null));
 
@@ -80,17 +82,14 @@ class FacturacionPagosTest {
         TipoCambioFake tcPort = new TipoCambioFake();
         PasarelaFake pasarelaPort = new PasarelaFake();
 
-        RegistrarValorizacion regVal = new RegistrarValorizacion(valPort, obraPort, partidaPort, avancePort, FIJO);
-        EmitirComprobante emComp = new EmitirComprobante(compPort, valPort, FIJO, 72);
-        GenerarPdfComprobante pdfUc = new GenerarPdfComprobante(compPort, valPort, obraPort, new ClientesFake(), new ComprobantePdfAdapter());
+        GestionarValorizacion regVal = new GestionarValorizacion(valPort, obraPort, partidaPort, avancePort, FIJO);
+        GestionarComprobante emComp = new GestionarComprobante(compPort, valPort, obraPort, new ClientesFake(), new ComprobantePdfAdapter(), FIJO, 72);
         ProcesarPago procPago = new ProcesarPago(pagoPort, obraPort, valPort, compPort, ingresoPort, tcPort, pasarelaPort, FIJO);
 
-        // Residente o Contador calculan valorización automática; Almacenero denegado
         assertThrows(AccesoDenegadoException.class, () ->
-                regVal.ejecutar(ALMACENERO, 1, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31), null));
+                regVal.registrar(ALMACENERO, 1, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31), null));
 
-        Valorizacion val = regVal.ejecutar(RESIDENTE, 1, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31), null);
-        // Presupuesto 500,000 * 50% = 250,000 subtotal + 45,000 IGV = 295,000 total
+        Valorizacion val = regVal.registrar(RESIDENTE, 1, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31), null);
         assertEquals(1, val.getNumero());
         assertEquals(new BigDecimal("50.00"), val.getAvanceAcumulado());
         assertEquals(new BigDecimal("50.00"), val.getPorcentajeAvancePeriodo());
@@ -99,12 +98,10 @@ class FacturacionPagosTest {
         assertEquals(new BigDecimal("295000.00"), val.getTotal());
         assertEquals("PENDIENTE", val.getEstado());
 
-        // RN-20: periodo solapado rechazado
         assertThrows(ReglaNegocioException.class, () ->
-                regVal.ejecutar(CONTADOR, 1, LocalDate.of(2026, 10, 15), LocalDate.of(2026, 11, 5), null));
+                regVal.registrar(CONTADOR, 1, LocalDate.of(2026, 10, 15), LocalDate.of(2026, 11, 5), null));
 
-        // Emitir comprobante CV01 automático con enlace de 72h
-        Comprobante comp = emComp.ejecutar(CONTADOR, val.getIdValorizacion(), null, null);
+        Comprobante comp = emComp.emitir(CONTADOR, val.getIdValorizacion(), null, null);
         assertEquals("CV01-000001", comp.getSerieNumero());
         assertEquals("COMPROBANTE_VALORIZACION", comp.getTipoComprobante());
         assertNotNull(comp.getCodigoPago());
@@ -113,21 +110,17 @@ class FacturacionPagosTest {
         assertEquals(new BigDecimal("295000.00"), comp.getTotal());
         assertEquals("FACTURADA", valPort.findById(val.getIdValorizacion()).orElseThrow().getEstado());
 
-        // Generar PDF interno CV01 válido
-        GenerarPdfComprobante.ResultadoPdf pdf = pdfUc.ejecutar(CONTADOR, comp.getIdComprobante());
+        var pdf = emComp.generarPdf(CONTADOR, comp.getIdComprobante());
         assertTrue(pdf.contenido().length > 500);
         assertTrue(new String(pdf.contenido(), 0, 5, StandardCharsets.US_ASCII).startsWith("%PDF-"));
 
-        // C02: el servidor rechaza un monto manipulado distinto al del comprobante
         assertThrows(ReglaNegocioException.class, () ->
                 procPago.ejecutar(CONTADOR, 1, val.getIdValorizacion(), comp.getIdComprobante(),
                         new BigDecimal("1.00"), "TRANSFERENCIA_SIMULADA", "OP-TAMPER"));
 
-        // No permite doble facturación
         assertThrows(ReglaNegocioException.class, () ->
-                emComp.ejecutar(ADMIN, val.getIdValorizacion(), null, null));
+                emComp.emitir(CONTADOR, val.getIdValorizacion(), null, null));
 
-        // Pago público con tarjeta de prueba terminada en 0002 -> PagoRechazadoException + conserva RECHAZADO sin Ingreso
         assertThrows(PagoRechazadoException.class, () ->
                 procPago.cobrarTarjetaSimuladaPublica(comp.getCodigoPago(), "4000000000000002", "JUAN PEREZ", "12/28", "123"));
         assertEquals(1, pagoPort.datos.size());
@@ -135,12 +128,10 @@ class FacturacionPagosTest {
         assertEquals("0002", pagoPort.datos.get(1).getUltimos4());
         assertEquals(0, ingresoPort.datos.size());
 
-        // Renovar enlace actualiza token e invalida el anterior
         String linkAnterior = comp.getCodigoPago();
         Comprobante renovado = emComp.renovarEnlace(CONTADOR, comp.getIdComprobante());
         assertNotEquals(linkAnterior, renovado.getCodigoPago());
 
-        // Cobro público aprobado mediante PayPal Sandbox (con T.C. 3.75 => 295000 / 3.75 = 78666.67 USD)
         Pago pago = procPago.capturarPayPalPublico(renovado.getCodigoPago(), "ORDER-PP-1");
         assertEquals("APROBADO", pago.getEstado());
         assertEquals("PAYPAL_SANDBOX", pago.getPasarela());
@@ -150,7 +141,6 @@ class FacturacionPagosTest {
         assertEquals("PAGADA", valPort.findById(val.getIdValorizacion()).orElseThrow().getEstado());
         assertEquals("PAGADO", compPort.findById(comp.getIdComprobante()).orElseThrow().getEstado());
 
-        // Idempotencia de captura PayPal y bloqueo de re-pago
         assertThrows(ReglaNegocioException.class, () ->
                 procPago.capturarPayPalPublico(renovado.getCodigoPago(), "ORDER-PP-1"));
     }
@@ -168,15 +158,15 @@ class FacturacionPagosTest {
         PagosFake pagoPort = new PagosFake();
         IngresosFake ingresoPort = new IngresosFake();
 
-        RegistrarValorizacion regVal = new RegistrarValorizacion(valPort, obraPort, partidaPort, avancePort, reloj);
-        EmitirComprobante emComp = new EmitirComprobante(compPort, valPort, reloj, 72);
+        GestionarValorizacion regVal = new GestionarValorizacion(valPort, obraPort, partidaPort, avancePort, reloj);
+        GestionarComprobante emComp = new GestionarComprobante(compPort, valPort, obraPort, new ClientesFake(), new ComprobantePdfAdapter(), reloj, 72);
         ProcesarPago procPago = new ProcesarPago(pagoPort, obraPort, valPort, compPort, ingresoPort,
                 new TipoCambioFake(), new PasarelaFake(), reloj, 72);
         ConsultarEnlacePagoPublico consulta = new ConsultarEnlacePagoPublico(compPort, valPort, obraPort,
                 new ClientesFake(), new TipoCambioFake(), new PasarelaFake(), reloj, pagoPort, 72);
 
-        Valorizacion val = regVal.ejecutar(RESIDENTE, 1, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31), null);
-        Comprobante comp = emComp.ejecutar(CONTADOR, val.getIdValorizacion(), null, null);
+        Valorizacion val = regVal.registrar(RESIDENTE, 1, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31), null);
+        Comprobante comp = emComp.emitir(CONTADOR, val.getIdValorizacion(), null, null);
         String codigo = comp.getCodigoPago();
 
         // 4 rechazos: avisa cuántos intentos quedan

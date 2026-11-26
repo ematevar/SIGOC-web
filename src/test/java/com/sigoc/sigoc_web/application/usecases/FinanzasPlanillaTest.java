@@ -3,6 +3,7 @@ package com.sigoc.sigoc_web.application.usecases;
 import com.sigoc.sigoc_web.domain.exceptions.AccesoDenegadoException;
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
 import com.sigoc.sigoc_web.domain.models.*;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarPlanillaUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.*;
 import org.junit.jupiter.api.Test;
 
@@ -20,18 +21,20 @@ class FinanzasPlanillaTest {
     private static final UsuarioSesion CONTADOR = new UsuarioSesion(4, "cont", "Contador", RolSistema.CONTADOR, false);
 
     @Test
-    void ingresoExigeRangoPlanificadoDeObraYSoloAdmin() {
+    void ingresoExigeRangoPlanificadoDeObraYSoloContador() {
         ObraPort obraPort = obraActiva(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30));
         IngresosFake ingresoPort = new IngresosFake();
-        RegistrarIngreso uc = new RegistrarIngreso(ingresoPort, obraPort, FIJO);
+        GestionarIngreso uc = new GestionarIngreso(ingresoPort, obraPort, FIJO);
 
         assertThrows(AccesoDenegadoException.class,
-                () -> uc.ejecutar(RESIDENTE, 1, LocalDate.of(2026, 4, 10), "Adelanto", new BigDecimal("5000")));
+                () -> uc.registrar(RESIDENTE, 1, LocalDate.of(2026, 4, 10), "Adelanto", new BigDecimal("5000")));
+        assertThrows(AccesoDenegadoException.class,
+                () -> uc.registrar(ADMIN, 1, LocalDate.of(2026, 4, 10), "Adelanto", new BigDecimal("5000")));
 
         assertThrows(ReglaNegocioException.class,
-                () -> uc.ejecutar(ADMIN, 1, LocalDate.of(2026, 3, 25), "Fuera de rango", new BigDecimal("5000")));
+                () -> uc.registrar(CONTADOR, 1, LocalDate.of(2026, 3, 25), "Fuera de rango", new BigDecimal("5000")));
 
-        Ingreso guardado = uc.ejecutar(ADMIN, 1, LocalDate.of(2026, 4, 10), "Valorización #1", new BigDecimal("12500.5"));
+        Ingreso guardado = uc.registrar(CONTADOR, 1, LocalDate.of(2026, 4, 10), "Valorización #1", new BigDecimal("12500.5"));
         assertEquals(new BigDecimal("12500.50"), guardado.getMonto());
         assertEquals(1, ingresoPort.datos.size());
     }
@@ -40,12 +43,12 @@ class FinanzasPlanillaTest {
     void egresoOtroSoloObraOperableYFechaNoFutura() {
         ObraPort obraPort = obraActiva(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30));
         EgresosFake egresoPort = new EgresosFake();
-        RegistrarEgreso uc = new RegistrarEgreso(egresoPort, obraPort, FIJO);
+        GestionarEgreso uc = new GestionarEgreso(egresoPort, obraPort, FIJO);
 
         assertThrows(ReglaNegocioException.class,
-                () -> uc.ejecutar(ADMIN, 1, LocalDate.of(2026, 4, 20), "Futuro", new BigDecimal("100")));
+                () -> uc.registrar(CONTADOR, 1, LocalDate.of(2026, 4, 20), "Futuro", new BigDecimal("100")));
 
-        Egreso egreso = uc.ejecutar(ADMIN, 1, LocalDate.of(2026, 4, 12), "Alquiler mezcladora", new BigDecimal("850"));
+        Egreso egreso = uc.registrar(CONTADOR, 1, LocalDate.of(2026, 4, 12), "Alquiler mezcladora", new BigDecimal("850"));
         assertEquals("Otro", egreso.getTipoEgreso());
         assertEquals(new BigDecimal("850.00"), egreso.getMonto());
     }
@@ -63,24 +66,21 @@ class FinanzasPlanillaTest {
         empPort.datos.put(11, e2);
 
         AsistenciasFake asistPort = new AsistenciasFake();
-        // Juan: PRESENTE + TARDANZA = 2 dias -> 240.00; FALTA ignorada
         asistPort.datos.add(asistencia(1, 10, 1, LocalDate.of(2026, 4, 6), "PRESENTE"));
         asistPort.datos.add(asistencia(2, 10, 1, LocalDate.of(2026, 4, 7), "TARDANZA"));
         asistPort.datos.add(asistencia(3, 10, 1, LocalDate.of(2026, 4, 8), "FALTA"));
-        // Maria: 1 dia -> 80.00
         asistPort.datos.add(asistencia(4, 11, 1, LocalDate.of(2026, 4, 6), "PRESENTE"));
 
-        CerrarPlanilla uc = new CerrarPlanilla(cierrePort, obraPort, asistPort, empPort, egresoPort, FIJO);
-        PrevisualizarPlanilla preUc = new PrevisualizarPlanilla(cierrePort, obraPort, asistPort, empPort, FIJO);
+        GestionarPlanilla uc = new GestionarPlanilla(cierrePort, obraPort, asistPort, empPort, egresoPort, FIJO);
 
-        PrevisualizarPlanilla.ResumenPlanilla preview = preUc.ejecutar(
+        GestionarPlanillaUseCase.ResumenPlanilla preview = uc.previsualizar(
                 CONTADOR, 1, LocalDate.of(2026, 4, 6), LocalDate.of(2026, 4, 12));
         assertEquals(new BigDecimal("320.00"), preview.totalPlanilla());
         assertEquals(2, preview.trabajadores().size());
         assertTrue(cierrePort.datos.isEmpty());
         assertTrue(egresoPort.datos.isEmpty());
 
-        CierrePlanilla cierre = uc.ejecutar(ADMIN, 1, LocalDate.of(2026, 4, 6), LocalDate.of(2026, 4, 12));
+        CierrePlanilla cierre = uc.cerrar(CONTADOR, 1, LocalDate.of(2026, 4, 6), LocalDate.of(2026, 4, 12));
         assertEquals(new BigDecimal("320.00"), cierre.getMontoTotal());
         assertEquals(2, egresoPort.datos.size());
         assertEquals("Planilla", egresoPort.datos.get(0).getTipoEgreso());
@@ -88,9 +88,8 @@ class FinanzasPlanillaTest {
         assertEquals(new BigDecimal("240.00"), egresoPort.datos.get(0).getMonto());
         assertEquals(new BigDecimal("80.00"), egresoPort.datos.get(1).getMonto());
 
-        // Solapamiento prohibido
         assertThrows(ReglaNegocioException.class,
-                () -> uc.ejecutar(ADMIN, 1, LocalDate.of(2026, 4, 10), LocalDate.of(2026, 4, 14)));
+                () -> uc.cerrar(CONTADOR, 1, LocalDate.of(2026, 4, 10), LocalDate.of(2026, 4, 14)));
     }
 
     @Test
@@ -102,13 +101,13 @@ class FinanzasPlanillaTest {
         AsistenciasFake asistPort = new AsistenciasFake();
         asistPort.datos.add(asistencia(1, 10, 1, LocalDate.of(2026, 4, 6), "FALTA"));
 
-        CerrarPlanilla uc = new CerrarPlanilla(cierrePort, obraPort, asistPort, empPort, egresoPort, FIJO);
+        GestionarPlanilla uc = new GestionarPlanilla(cierrePort, obraPort, asistPort, empPort, egresoPort, FIJO);
         assertThrows(ReglaNegocioException.class,
-                () -> uc.ejecutar(ADMIN, 1, LocalDate.of(2026, 4, 6), LocalDate.of(2026, 4, 12)));
+                () -> uc.cerrar(CONTADOR, 1, LocalDate.of(2026, 4, 6), LocalDate.of(2026, 4, 12)));
     }
 
     @Test
-    void contadorPuedeCerrarPlanillaEIncluyeEmpleadoDesactivadoConAsistenciaC17() {
+    void contadorPuedeCerrarPlanillaEIncluyeEmpleadoDesactivadoConAsistencia() {
         ObraPort obraPort = obraActiva(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30));
         CierresFake cierrePort = new CierresFake();
         EgresosFake egresoPort = new EgresosFake();
@@ -120,8 +119,8 @@ class FinanzasPlanillaTest {
         AsistenciasFake asistPort = new AsistenciasFake();
         asistPort.datos.add(asistencia(1, 12, 1, LocalDate.of(2026, 4, 6), "PRESENTE"));
 
-        CierrePlanilla cierre = new CerrarPlanilla(cierrePort, obraPort, asistPort, empPort, egresoPort, FIJO)
-                .ejecutar(CONTADOR, 1, LocalDate.of(2026, 4, 6), LocalDate.of(2026, 4, 12));
+        CierrePlanilla cierre = new GestionarPlanilla(cierrePort, obraPort, asistPort, empPort, egresoPort, FIJO)
+                .cerrar(CONTADOR, 1, LocalDate.of(2026, 4, 6), LocalDate.of(2026, 4, 12));
         assertEquals(new BigDecimal("100.00"), cierre.getMontoTotal());
         assertEquals(1, egresoPort.datos.size());
     }

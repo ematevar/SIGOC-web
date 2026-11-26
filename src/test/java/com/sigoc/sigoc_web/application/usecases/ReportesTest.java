@@ -16,46 +16,48 @@ import static org.junit.jupiter.api.Assertions.*;
 class ReportesTest {
 
     private static final UsuarioSesion ADMIN = new UsuarioSesion(1, "admin", "Admin", RolSistema.ADMIN, false);
+    private static final UsuarioSesion GERENTE = new UsuarioSesion(2, "gerente", "Gerente", RolSistema.GERENTE, false);
     private static final UsuarioSesion ALMACENERO = new UsuarioSesion(3, "alm", "Alm", RolSistema.ALMACENERO, false);
     private static final UsuarioSesion CONTADOR = new UsuarioSesion(4, "cont", "Contador", RolSistema.CONTADOR, false);
 
     @Test
-    void soloAdminYContadorPuedenGenerarYValidaRangoFechas() {
-        GenerarReporte uc = new GenerarReporte(fakePort());
+    void soloGerenteYContadorPuedenGenerarYValidaRangoFechas() {
+        GestionarReporte uc = new GestionarReporte(fakePort(), new ExportadorReporteAdapter());
 
         assertThrows(AccesoDenegadoException.class,
-                () -> uc.ejecutar(ALMACENERO, TipoReporte.CURVA_S, null, null, null));
+                () -> uc.generar(ALMACENERO, TipoReporte.CURVA_S, null, null, null));
+        assertThrows(AccesoDenegadoException.class,
+                () -> uc.generar(ADMIN, TipoReporte.CURVA_S, null, null, null));
 
         assertThrows(ReglaNegocioException.class,
-                () -> uc.ejecutar(ADMIN, TipoReporte.FINANCIERO, 1,
+                () -> uc.generar(GERENTE, TipoReporte.FINANCIERO, 1,
                         LocalDate.of(2026, 4, 20), LocalDate.of(2026, 4, 10)));
 
-        Reporte curva = uc.ejecutar(ADMIN, TipoReporte.CURVA_S, 1,
+        Reporte curva = uc.generar(GERENTE, TipoReporte.CURVA_S, 1,
                 LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30));
         assertEquals("Curva S Fake", curva.titulo());
         assertEquals(1, curva.filas().size());
 
-        Reporte valCob = uc.ejecutar(CONTADOR, TipoReporte.VALORIZACIONES_COBRANZAS, 1, null, null);
+        Reporte valCob = uc.generar(CONTADOR, TipoReporte.VALORIZACIONES_COBRANZAS, 1, null, null);
         assertEquals("Valorizaciones Fake", valCob.titulo());
         assertEquals(1, valCob.filas().size());
     }
 
     @Test
     void exportaCsvXlsxYPdfSinTruncamientoYConFirmasValidas() {
-        GenerarReporte generar = new GenerarReporte(fakePort());
-        ExportarReporte exportar = new ExportarReporte(generar, new ExportadorReporteAdapter());
+        GestionarReporte uc = new GestionarReporte(fakePort(), new ExportadorReporteAdapter());
 
-        byte[] csv = exportar.ejecutar(ADMIN, TipoReporte.FINANCIERO, FormatoExportacion.CSV, null, null, null);
+        byte[] csv = uc.exportar(GERENTE, TipoReporte.FINANCIERO, FormatoExportacion.CSV, null, null, null);
         String csvTexto = new String(csv, StandardCharsets.UTF_8);
         assertTrue(csvTexto.startsWith("\uFEFF\"Obra\",\"Saldo\""));
         assertTrue(csvTexto.contains("\"Construcción Integral Hospital Regional Norte\""));
 
-        byte[] xlsx = exportar.ejecutar(ADMIN, TipoReporte.FINANCIERO, FormatoExportacion.XLSX, null, null, null);
+        byte[] xlsx = uc.exportar(GERENTE, TipoReporte.FINANCIERO, FormatoExportacion.XLSX, null, null, null);
         assertTrue(xlsx.length > 100);
         assertEquals('P', (char) xlsx[0]);
         assertEquals('K', (char) xlsx[1]);
 
-        byte[] pdf = exportar.ejecutar(ADMIN, TipoReporte.FINANCIERO, FormatoExportacion.PDF, null, null, null);
+        byte[] pdf = uc.exportar(GERENTE, TipoReporte.FINANCIERO, FormatoExportacion.PDF, null, null, null);
         String pdfCabecera = new String(pdf, 0, Math.min(pdf.length, 16), StandardCharsets.ISO_8859_1);
         assertTrue(pdfCabecera.startsWith("%PDF-1.4"));
         assertTrue(pdf.length > 800);
