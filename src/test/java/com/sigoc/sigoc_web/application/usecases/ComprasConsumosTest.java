@@ -3,6 +3,7 @@ package com.sigoc.sigoc_web.application.usecases;
 import com.sigoc.sigoc_web.domain.exceptions.AccesoDenegadoException;
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
 import com.sigoc.sigoc_web.domain.models.*;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarCompraUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,13 +24,14 @@ class ComprasConsumosTest {
     private PartidasFake partidaPort;
     private MaterialesFake materialPort;
 
-    private RegistrarCompra registrarCompra;
-    private RegistrarConsumo registrarConsumo;
+    private GestionarCompra gestionarCompra;
+    private GestionarConsumo gestionarConsumo;
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-10-15T12:00:00Z"), ZoneOffset.UTC);
     private final UsuarioSesion admin = new UsuarioSesion(1, "admin", "Admin", RolSistema.ADMIN, false);
-    private final UsuarioSesion residente = new UsuarioSesion(2, "res", "Residente", RolSistema.RESIDENTE, false);
-    private final UsuarioSesion almacenero = new UsuarioSesion(3, "alm", "Almacenero", RolSistema.ALMACENERO, false);
+    private final UsuarioSesion gerente = new UsuarioSesion(2, "gerente", "Gerente", RolSistema.GERENTE, false);
+    private final UsuarioSesion residente = new UsuarioSesion(3, "res", "Residente", RolSistema.RESIDENTE, false);
+    private final UsuarioSesion almacenero = new UsuarioSesion(4, "alm", "Almacenero", RolSistema.ALMACENERO, false);
 
     @BeforeEach
     void setUp() {
@@ -41,8 +43,8 @@ class ComprasConsumosTest {
         partidaPort = new PartidasFake();
         materialPort = new MaterialesFake();
 
-        registrarCompra = new RegistrarCompra(compraPort, proveedorPort, obraPort, materialPort, egresoPort, clock);
-        registrarConsumo = new RegistrarConsumo(consumoPort, materialPort, partidaPort, obraPort, clock);
+        gestionarCompra = new GestionarCompra(compraPort, proveedorPort, obraPort, materialPort, egresoPort, clock);
+        gestionarConsumo = new GestionarConsumo(consumoPort, materialPort, partidaPort, obraPort, clock);
 
         proveedorPort.datos.put(1, new Proveedor(1, "Proveedora SAC", "20123456789", null, null, true));
         obraPort.datos.put(1, new Obra(1, "Colegio", "MINEDU", "Lima",
@@ -53,19 +55,22 @@ class ComprasConsumosTest {
                 new BigDecimal("10.00"), new BigDecimal("20.00"), new BigDecimal("28.00"), true, null));
     }
 
-    // ---------- RF-07 Compras ----------
+    // ---------- CU-07 Compras ----------
 
     @Test
-    void compraSoloAlmaceneroOAdminYGeneraStockYEgreso() {
+    void compraSoloAlmaceneroYGeneraStockYEgreso() {
         LocalDate hoy = LocalDate.of(2026, 10, 15);
         assertThrows(AccesoDenegadoException.class,
-                () -> registrarCompra.ejecutar(residente, 1, 1, 1, "Factura", "F001-1",
+                () -> gestionarCompra.registrar(residente, 1, 1, 1, "Factura", "F001-1",
+                        hoy, new BigDecimal("50"), new BigDecimal("30")));
+        assertThrows(AccesoDenegadoException.class,
+                () -> gestionarCompra.registrar(admin, 1, 1, 1, "Factura", "F001-1",
                         hoy, new BigDecimal("50"), new BigDecimal("30")));
         assertThrows(ReglaNegocioException.class,
-                () -> registrarCompra.ejecutar(almacenero, 1, 1, 1, "Guia", "F001-1",
+                () -> gestionarCompra.registrar(almacenero, 1, 1, 1, "Guia", "F001-1",
                         hoy, new BigDecimal("50"), new BigDecimal("30")));
 
-        CompraMaterial compra = registrarCompra.ejecutar(almacenero, 1, 1, 1, "Factura", "F001-1",
+        CompraMaterial compra = gestionarCompra.registrar(almacenero, 1, 1, 1, "Factura", "F001-1",
                 hoy, new BigDecimal("50"), new BigDecimal("32.50"));
         assertEquals(new BigDecimal("1625.00"), compra.getTotal());
         assertEquals(new BigDecimal("60.00"), materialPort.datos.get(1).getStockActual());
@@ -74,9 +79,8 @@ class ComprasConsumosTest {
         assertEquals("Material", egresoPort.datos.get(0).getTipoEgreso());
         assertEquals(compra.getIdCompra(), egresoPort.datos.get(0).getIdCompra());
 
-        // Comprobante duplicado para el mismo proveedor
         assertThrows(ReglaNegocioException.class,
-                () -> registrarCompra.ejecutar(admin, 1, 1, 1, "Factura", "f001-1",
+                () -> gestionarCompra.registrar(almacenero, 1, 1, 1, "Factura", "f001-1",
                         hoy, new BigDecimal("5"), new BigDecimal("30")));
     }
 
@@ -86,19 +90,17 @@ class ComprasConsumosTest {
         materialPort.datos.put(2, new Material(2, "Fierro 1/2", "var",
                 new BigDecimal("5.00"), new BigDecimal("2.00"), new BigDecimal("35.00"), true, null));
 
-        // Material duplicado en el mismo comprobante
         assertThrows(ReglaNegocioException.class,
-                () -> registrarCompra.ejecutar(almacenero, 1, 1, "Boleta", "B001-1", hoy, List.of(
-                        new RegistrarCompra.ItemCompra(1, new BigDecimal("2"), new BigDecimal("25")),
-                        new RegistrarCompra.ItemCompra(1, new BigDecimal("3"), new BigDecimal("26"))
+                () -> gestionarCompra.registrarConItems(almacenero, 1, 1, "Boleta", "B001-1", hoy, List.of(
+                        new GestionarCompraUseCase.ItemCompra(1, new BigDecimal("2"), new BigDecimal("25")),
+                        new GestionarCompraUseCase.ItemCompra(1, new BigDecimal("3"), new BigDecimal("26"))
                 )));
 
-        CompraMaterial multi = registrarCompra.ejecutar(almacenero, 1, 1, "Factura", "F001-99", hoy, List.of(
-                new RegistrarCompra.ItemCompra(1, new BigDecimal("4"), new BigDecimal("30")),
-                new RegistrarCompra.ItemCompra(2, new BigDecimal("10"), new BigDecimal("40"))
+        CompraMaterial multi = gestionarCompra.registrarConItems(almacenero, 1, 1, "Factura", "F001-99", hoy, List.of(
+                new GestionarCompraUseCase.ItemCompra(1, new BigDecimal("4"), new BigDecimal("30")),
+                new GestionarCompraUseCase.ItemCompra(2, new BigDecimal("10"), new BigDecimal("40"))
         ));
 
-        // Subtotal total = 4*30 + 10*40 = 520.00
         assertEquals(new BigDecimal("520.00"), multi.getTotal());
         assertEquals(new BigDecimal("14.00"), materialPort.datos.get(1).getStockActual());
         assertEquals(new BigDecimal("30.00"), materialPort.datos.get(1).getCostoUnitarioRef());
@@ -109,7 +111,7 @@ class ComprasConsumosTest {
         assertEquals(2, compraPort.ultimosDetalles);
     }
 
-    // ---------- RF-08 Consumos ----------
+    // ---------- CU-08 Consumos ----------
 
     @Test
     void consumoSoloResidenteValidaStockYDisparaAlerta() {
@@ -117,29 +119,27 @@ class ComprasConsumosTest {
         materialPort.datos.get(1).setStockActual(new BigDecimal("30.00"));
 
         assertThrows(AccesoDenegadoException.class,
-                () -> registrarConsumo.ejecutar(almacenero, 1, 1, hoy, new BigDecimal("5")));
+                () -> gestionarConsumo.registrar(almacenero, 1, 1, hoy, new BigDecimal("5")));
         assertThrows(ReglaNegocioException.class,
-                () -> registrarConsumo.ejecutar(residente, 1, 1, hoy, new BigDecimal("35")));
+                () -> gestionarConsumo.registrar(residente, 1, 1, hoy, new BigDecimal("35")));
 
-        // Consume 5 -> queda 25 (> 20 mínimo, sin alerta)
-        var r1 = registrarConsumo.ejecutar(residente, 1, 1, hoy, new BigDecimal("5"));
+        var r1 = gestionarConsumo.registrar(residente, 1, 1, hoy, new BigDecimal("5"));
         assertEquals(new BigDecimal("25.00"), r1.stockResultante());
         assertFalse(r1.alertaStockMinimo());
 
-        // Consume 5 -> queda 20 (<= 20 mínimo, dispara alerta!)
-        var r2 = registrarConsumo.ejecutar(residente, 1, 1, hoy, new BigDecimal("5"));
+        var r2 = gestionarConsumo.registrar(residente, 1, 1, hoy, new BigDecimal("5"));
         assertEquals(new BigDecimal("20.00"), r2.stockResultante());
         assertTrue(r2.alertaStockMinimo());
 
         assertEquals(new BigDecimal("10.00"),
-                new ObtenerConsumoAcumuladoPartida(consumoPort).ejecutar(admin, 1, 1));
+                gestionarConsumo.obtenerAcumulado(gerente, 1, 1));
     }
 
     @Test
     void consumoBloqueadoEnObraCerrada() {
         obraPort.datos.get(1).setEstado("Finalizada");
         assertThrows(ReglaNegocioException.class,
-                () -> registrarConsumo.ejecutar(residente, 1, 1, LocalDate.of(2026, 10, 15), new BigDecimal("2")));
+                () -> gestionarConsumo.registrar(residente, 1, 1, LocalDate.of(2026, 10, 15), new BigDecimal("2")));
     }
 
     // ---------- Fakes ----------
