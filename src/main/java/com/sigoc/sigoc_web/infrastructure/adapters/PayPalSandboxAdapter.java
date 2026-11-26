@@ -1,8 +1,7 @@
 package com.sigoc.sigoc_web.infrastructure.adapters;
 
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
-import com.sigoc.sigoc_web.domain.ports.out.PasarelaPagoPort.OrdenPayPal;
-import com.sigoc.sigoc_web.domain.ports.out.PasarelaPagoPort.ResultadoCapturaPayPal;
+import com.sigoc.sigoc_web.domain.ports.out.PasarelaPagoExternaPort;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -18,10 +17,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Integración con PayPal REST v2 Sandbox usando credenciales externalizadas (RF-20 / C01).
+ * Integración con PayPal REST v2 Sandbox usando credenciales externalizadas (CU-20 / QA-08).
  */
 @Component
-public class PayPalSandboxAdapter {
+public class PayPalSandboxAdapter implements PasarelaPagoExternaPort {
 
     private final RestClient restClient;
     private final String clientId;
@@ -43,12 +42,19 @@ public class PayPalSandboxAdapter {
                 .build();
     }
 
-    public boolean habilitado() {
+    @Override
+    public boolean estaHabilitada() {
         return !clientId.isBlank() && !clientSecret.isBlank();
     }
 
-    public OrdenPayPal crearOrden(BigDecimal montoUsd, String moneda, String referenciaComprobante,
-                                  String descripcion, String returnUrl, String cancelUrl) {
+    @Override
+    public String nombreProveedor() {
+        return "PAYPAL_SANDBOX";
+    }
+
+    @Override
+    public OrdenExterna crearOrden(BigDecimal montoUsd, String moneda, String referenciaComprobante,
+                                   String descripcion, String returnUrl, String cancelUrl) {
         String token = obtenerTokenOAuth();
         Map<String, Object> body = Map.of(
                 "intent", "CAPTURE",
@@ -82,16 +88,17 @@ public class PayPalSandboxAdapter {
             String id = resp.get("id").toString();
             String status = String.valueOf(resp.getOrDefault("status", "CREATED"));
             String approvalUrl = extraerLinkAprobacion(resp.get("links"));
-            return new OrdenPayPal(id, status, approvalUrl);
+            return new OrdenExterna(id, status, approvalUrl);
         } catch (RestClientException ex) {
             throw new ReglaNegocioException("Error al crear orden en PayPal Sandbox: " + ex.getMessage());
         }
     }
 
+    @Override
     @SuppressWarnings("unchecked")
-    public ResultadoCapturaPayPal capturarOrden(String idOrdenExterna) {
+    public ResultadoCaptura capturarOrden(String idOrdenExterna) {
         if (idOrdenExterna == null || idOrdenExterna.isBlank()) {
-            throw new ReglaNegocioException("Falta el identificador de orden de PayPal.");
+            throw new ReglaNegocioException("Falta el identificador de orden de la pasarela externa.");
         }
         String token = obtenerTokenOAuth();
         try {
@@ -103,7 +110,7 @@ public class PayPalSandboxAdapter {
                     .retrieve()
                     .body(Map.class);
             if (resp == null) {
-                return new ResultadoCapturaPayPal(false, null, null, null, "Respuesta vacía de PayPal.");
+                return new ResultadoCaptura(false, null, null, null, "Respuesta vacía de la pasarela externa.");
             }
             String status = String.valueOf(resp.getOrDefault("status", ""));
             boolean ok = "COMPLETED".equalsIgnoreCase(status);
@@ -131,16 +138,16 @@ public class PayPalSandboxAdapter {
                     }
                 }
             }
-            return new ResultadoCapturaPayPal(ok, idCaptura, monto, moneda,
-                    ok ? "COMPLETED" : "Estado PayPal: " + status);
+            return new ResultadoCaptura(ok, idCaptura, monto, moneda,
+                    ok ? "COMPLETED" : "Estado pasarela externa: " + status);
         } catch (RestClientException ex) {
-            return new ResultadoCapturaPayPal(false, null, null, null,
-                    "Error al capturar orden PayPal Sandbox: " + ex.getMessage());
+            return new ResultadoCaptura(false, null, null, null,
+                    "Error al capturar orden externa: " + ex.getMessage());
         }
     }
 
     private String obtenerTokenOAuth() {
-        if (!habilitado()) {
+        if (!estaHabilitada()) {
             throw new ReglaNegocioException(
                     "PayPal Sandbox no tiene credenciales configuradas (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET).");
         }

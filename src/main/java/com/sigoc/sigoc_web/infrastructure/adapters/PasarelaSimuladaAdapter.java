@@ -1,7 +1,7 @@
 package com.sigoc.sigoc_web.infrastructure.adapters;
 
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
-import com.sigoc.sigoc_web.domain.ports.out.PasarelaPagoPort.ResultadoTarjetaSimulada;
+import com.sigoc.sigoc_web.domain.ports.out.PasarelaTarjetaPort;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -14,7 +14,7 @@ import java.util.UUID;
  * y rechazo configurable de prueba. No persiste PAN ni CVV.
  */
 @Component
-public class PasarelaSimuladaAdapter {
+public class PasarelaSimuladaAdapter implements PasarelaTarjetaPort {
 
     private final Clock clock;
 
@@ -22,8 +22,14 @@ public class PasarelaSimuladaAdapter {
         this.clock = clock;
     }
 
-    public ResultadoTarjetaSimulada cobrar(String numeroTarjeta, String titular,
-                                           String vencimiento, String cvv, BigDecimal montoPen) {
+    @Override
+    public ResultadoTarjeta cobrarTarjeta(String numeroTarjeta, String titular,
+                                          String vencimiento, String cvv, BigDecimal montoPen) {
+        return cobrar(numeroTarjeta, titular, vencimiento, cvv, montoPen);
+    }
+
+    public ResultadoTarjeta cobrar(String numeroTarjeta, String titular,
+                                   String vencimiento, String cvv, BigDecimal montoPen) {
         if (titular == null || titular.trim().length() < 3) {
             throw new ReglaNegocioException("Ingresa el nombre del titular de la tarjeta.");
         }
@@ -51,10 +57,10 @@ public class PasarelaSimuladaAdapter {
         String codigo = "CARD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
         if ("0002".equals(ultimos4) || "999".equals(cvvNorm)) {
-            return new ResultadoTarjetaSimulada(false, codigo, marca, ultimos4,
+            return new ResultadoTarjeta(false, codigo, marca, ultimos4,
                     "Operación denegada por el banco emisor (tarjeta/CVV de rechazo de prueba).");
         }
-        return new ResultadoTarjetaSimulada(true, codigo, marca, ultimos4, "Aprobado");
+        return new ResultadoTarjeta(true, codigo, marca, ultimos4, "Aprobado");
     }
 
     static boolean luhnValido(String digits) {
