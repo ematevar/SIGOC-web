@@ -1,9 +1,11 @@
 package com.sigoc.sigoc_web.application.usecases;
 
-import com.sigoc.sigoc_web.domain.ports.in.RegistrarAsistenciaUseCase;
-
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
-import com.sigoc.sigoc_web.domain.models.*;
+import com.sigoc.sigoc_web.domain.models.Asistencia;
+import com.sigoc.sigoc_web.domain.models.Empleado;
+import com.sigoc.sigoc_web.domain.models.Obra;
+import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarAsistenciaUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.AsistenciaPort;
 import com.sigoc.sigoc_web.domain.ports.out.EmpleadoPort;
 import com.sigoc.sigoc_web.domain.ports.out.ObraPort;
@@ -12,20 +14,20 @@ import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * RF-11 / RF-14: registra la asistencia diaria de un trabajador (solo Residente de Obra),
- * limpiando horas en FALTA/PERMISO, validando salida posterior a entrada, evitando duplicados
- * y bloqueando registros dentro de periodos de planilla cerrados.
+ * CU-11: Registro individual y en lote de asistencia diaria en obra.
  */
-public class RegistrarAsistencia implements RegistrarAsistenciaUseCase {
+public class GestionarAsistencia implements GestionarAsistenciaUseCase {
 
     private final AsistenciaPort asistenciaPort;
     private final EmpleadoPort empleadoPort;
     private final ObraPort obraPort;
     private final Clock clock;
 
-    public RegistrarAsistencia(AsistenciaPort asistenciaPort, EmpleadoPort empleadoPort,
+    public GestionarAsistencia(AsistenciaPort asistenciaPort, EmpleadoPort empleadoPort,
                                ObraPort obraPort, Clock clock) {
         this.asistenciaPort = asistenciaPort;
         this.empleadoPort = empleadoPort;
@@ -33,9 +35,16 @@ public class RegistrarAsistencia implements RegistrarAsistenciaUseCase {
         this.clock = clock;
     }
 
-    public Asistencia ejecutar(UsuarioSesion actor, Integer idEmpleado, Integer idObra,
-                               LocalDate fecha, LocalTime horaEntrada, LocalTime horaSalida, String estado) {
-        PoliticaAcceso.verificar(actor, RolSistema.RESIDENTE);
+    @Override
+    public List<Asistencia> listar(UsuarioSesion actor, Integer idObra) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.VER_ASISTENCIA);
+        return idObra != null ? asistenciaPort.findActivasByObra(idObra) : asistenciaPort.findAllActivas();
+    }
+
+    @Override
+    public Asistencia registrar(UsuarioSesion actor, Integer idEmpleado, Integer idObra,
+                                LocalDate fecha, LocalTime horaEntrada, LocalTime horaSalida, String estado) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.REGISTRAR_ASISTENCIA);
         if (idEmpleado == null || idEmpleado <= 0 || idObra == null || idObra <= 0
                 || fecha == null || fecha.isAfter(LocalDate.now(clock))) {
             throw new ReglaNegocioException("Empleado, obra o fecha inválidos.");
@@ -83,5 +92,27 @@ public class RegistrarAsistencia implements RegistrarAsistenciaUseCase {
         Asistencia nueva = new Asistencia(null, idEmpleado, idObra, fecha, entradaFinal, salidaFinal,
                 estNorm, true, null);
         return asistenciaPort.guardar(nueva);
+    }
+
+    @Override
+    public List<Asistencia> registrarLote(UsuarioSesion actor, Integer idObra, LocalDate fecha,
+                                          List<FilaAsistencia> filas) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.REGISTRAR_ASISTENCIA);
+        if (filas == null || filas.isEmpty()) {
+            throw new ReglaNegocioException("Incluye al menos un trabajador para registrar asistencia.");
+        }
+        List<Asistencia> registradas = new ArrayList<>(filas.size());
+        for (FilaAsistencia fila : filas) {
+            registradas.add(registrar(
+                    actor,
+                    fila.idEmpleado(),
+                    idObra,
+                    fecha,
+                    fila.horaEntrada(),
+                    fila.horaSalida(),
+                    fila.estado()
+            ));
+        }
+        return registradas;
     }
 }
