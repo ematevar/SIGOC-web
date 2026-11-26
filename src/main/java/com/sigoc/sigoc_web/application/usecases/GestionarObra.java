@@ -2,53 +2,60 @@ package com.sigoc.sigoc_web.application.usecases;
 
 import com.sigoc.sigoc_web.domain.exceptions.RecursoNoEncontradoException;
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
+import com.sigoc.sigoc_web.domain.models.AuditoriaEvento;
 import com.sigoc.sigoc_web.domain.models.Cliente;
 import com.sigoc.sigoc_web.domain.models.Obra;
-import com.sigoc.sigoc_web.domain.models.RolSistema;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
 import com.sigoc.sigoc_web.domain.ports.in.GestionarObraUseCase;
+import com.sigoc.sigoc_web.domain.ports.out.AuditoriaEventoPort;
 import com.sigoc.sigoc_web.domain.ports.out.ClientePort;
 import com.sigoc.sigoc_web.domain.ports.out.ObraPort;
 import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Set;
 
 /**
- * RF-03: crea o actualiza una obra civil validando presupuesto positivo, coherencia de fechas,
- * vínculo opcional con cliente activo e inmutabilidad de obras finalizadas (C09).
+ * CU-03: Gestión del ciclo de vida de obras civiles y cierre formal (solo GERENTE).
  */
-public class GuardarObra implements GestionarObraUseCase {
+public class GestionarObra implements GestionarObraUseCase {
 
     private static final Set<String> ESTADOS_VALIDOS = Set.of(
             "Planificada", "En Ejecución", "Suspendida", "Finalizada");
 
     private final ObraPort obraPort;
     private final ClientePort clientePort;
+    private final AuditoriaEventoPort auditoriaPort;
+    private final Clock clock;
 
-    public GuardarObra(ObraPort obraPort) {
-        this(obraPort, null);
+    public GestionarObra(ObraPort obraPort, ClientePort clientePort) {
+        this(obraPort, clientePort, null, Clock.systemDefaultZone());
     }
 
-    public GuardarObra(ObraPort obraPort, ClientePort clientePort) {
+    public GestionarObra(ObraPort obraPort, ClientePort clientePort,
+                         AuditoriaEventoPort auditoriaPort, Clock clock) {
         this.obraPort = obraPort;
         this.clientePort = clientePort;
+        this.auditoriaPort = auditoriaPort;
+        this.clock = clock != null ? clock : Clock.systemDefaultZone();
     }
 
-    public Obra ejecutar(UsuarioSesion actor, Integer idObra, String nombre, String cliente,
-                         String ubicacion, BigDecimal presupuestoTotal,
-                         LocalDate fechaInicioPlan, LocalDate fechaFinPlan, String estado) {
-        return ejecutar(actor, idObra, null, nombre, cliente, ubicacion, presupuestoTotal,
-                fechaInicioPlan, fechaFinPlan, estado);
+    @Override
+    public List<Obra> listar(UsuarioSesion actor) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.VER_OBRAS);
+        return obraPort.findAllActivas();
     }
 
-    public Obra ejecutar(UsuarioSesion actor, Integer idObra, Integer idCliente,
-                         String nombre, String cliente, String ubicacion,
-                         BigDecimal presupuestoTotal, LocalDate fechaInicioPlan,
-                         LocalDate fechaFinPlan, String estado) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN);
+    @Override
+    public Obra guardar(UsuarioSesion actor, Integer idObra, Integer idCliente,
+                        String nombre, String cliente, String ubicacion,
+                        BigDecimal presupuestoTotal, LocalDate fechaInicioPlan,
+                        LocalDate fechaFinPlan, String estado) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.GESTIONAR_OBRAS);
         if (nombre == null || nombre.isBlank()) {
             throw new ReglaNegocioException("Completa el campo obligatorio: nombre.");
         }
@@ -116,5 +123,38 @@ public class GuardarObra implements GestionarObraUseCase {
         obra.setFechaInicioPlan(fechaInicioPlan);
         obra.setFechaFinPlan(fechaFinPlan);
         return obraPort.guardar(obra);
+    }
+
+    @Override
+    public void eliminar(UsuarioSesion actor, Integer idObra) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.GESTIONAR_OBRAS);
+        if (idObra == null || idObra <= 0) {
+            throw new ReglaNegocioException("Selecciona una obra válida.");
+        }
+        obraPort.findById(idObra)
+                .filter(Obra::isActivo)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la obra."));
+        if (obraPort.tieneMovimientos(idObra)) {
+            throw new ReglaNegocioException(
+                    "No se puede eliminar una obra que tiene partidas o movimientos registrados (RF-03). Utilice la opción de cerrar/finalizar obra.");
+        }
+        obraPort.desactivar(idObra);
+    }
+
+    @Override
+    public void cerrar(UsuarioSesion actor, Integer idObra) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.GESTIONAR_OBRAS);
+        if (idObra == null || idObra <= 0) {
+            throw new ReglaNegocioException("Selecciona una obra válida.");
+        }
+        Obra obra = obraPort.findById(idObra)
+                .filter(Obra::isActivo)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la obra."));
+        obraPort.cerrar(idObra);
+        if (auditoriaPort != null) {
+            auditoriaPort.registrar(AuditoriaEvento.crear(
+                    clock, actor, "CIERRE_OBRA", "obra", String.valueOf(idObra),
+                    "EXITO", "Cierre formal de obra: " + obra.getNombre()));
+        }
     }
 }
