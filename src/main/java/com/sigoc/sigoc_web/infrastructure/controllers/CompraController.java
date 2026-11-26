@@ -1,46 +1,41 @@
 package com.sigoc.sigoc_web.infrastructure.controllers;
 
-import com.sigoc.sigoc_web.application.usecases.ListarCompras;
-import com.sigoc.sigoc_web.application.usecases.RegistrarCompra;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarCompraUseCase;
 import com.sigoc.sigoc_web.infrastructure.controllers.dto.CompraDtos.CompraResponse;
 import com.sigoc.sigoc_web.infrastructure.controllers.dto.CompraDtos.RegistrarCompraRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
- * RF-07: registro de compras de materiales (Almacenero y Administrador).
+ * CU-07: Registro de compras de materiales (ALMACENERO).
  */
 @RestController
 @RequestMapping("/api/compras")
 public class CompraController {
 
-    private final ListarCompras listarCompras;
-    private final RegistrarCompra registrarCompra;
+    private final GestionarCompraUseCase gestionarCompra;
 
-    public CompraController(ListarCompras listarCompras, RegistrarCompra registrarCompra) {
-        this.listarCompras = listarCompras;
-        this.registrarCompra = registrarCompra;
+    public CompraController(GestionarCompraUseCase gestionarCompra) {
+        this.gestionarCompra = gestionarCompra;
     }
 
     @GetMapping
     public List<CompraResponse> listar(UsuarioSesion actor) {
-        return listarCompras.ejecutar(actor).stream().map(CompraResponse::de).toList();
+        return gestionarCompra.listar(actor).stream().map(CompraResponse::de).toList();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Transactional
     public CompraResponse registrar(UsuarioSesion actor, @Valid @RequestBody RegistrarCompraRequest body) {
         if (body.items() != null && !body.items().isEmpty()) {
-            List<RegistrarCompra.ItemCompra> items = body.items().stream()
-                    .map(i -> new RegistrarCompra.ItemCompra(i.idMaterial(), i.cantidad(), i.precioUnitario()))
+            List<GestionarCompraUseCase.ItemCompra> items = body.items().stream()
+                    .map(i -> new GestionarCompraUseCase.ItemCompra(i.idMaterial(), i.cantidad(), i.precioUnitario()))
                     .toList();
-            return CompraResponse.de(registrarCompra.ejecutar(
+            return CompraResponse.de(gestionarCompra.registrarConItems(
                     actor,
                     body.idProveedor(),
                     body.idObra(),
@@ -50,7 +45,7 @@ public class CompraController {
                     items
             ));
         }
-        return CompraResponse.de(registrarCompra.ejecutar(
+        return CompraResponse.de(gestionarCompra.registrar(
                 actor,
                 body.idProveedor(),
                 body.idObra(),

@@ -1,25 +1,35 @@
 package com.sigoc.sigoc_web.application.usecases;
 
-import com.sigoc.sigoc_web.domain.ports.in.RegistrarCompraUseCase;
-
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
-import com.sigoc.sigoc_web.domain.models.*;
-import com.sigoc.sigoc_web.domain.ports.out.*;
+import com.sigoc.sigoc_web.domain.models.CompraMaterial;
+import com.sigoc.sigoc_web.domain.models.DetalleCompra;
+import com.sigoc.sigoc_web.domain.models.Egreso;
+import com.sigoc.sigoc_web.domain.models.Material;
+import com.sigoc.sigoc_web.domain.models.Obra;
+import com.sigoc.sigoc_web.domain.models.Proveedor;
+import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarCompraUseCase;
+import com.sigoc.sigoc_web.domain.ports.out.CompraPort;
+import com.sigoc.sigoc_web.domain.ports.out.EgresoPort;
+import com.sigoc.sigoc_web.domain.ports.out.MaterialPort;
+import com.sigoc.sigoc_web.domain.ports.out.ObraPort;
+import com.sigoc.sigoc_web.domain.ports.out.ProveedorPort;
 import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
- * RF-07: registra una compra de uno o varios materiales incrementando stock y creando el egreso tipo Material.
+ * CU-07: Registro y consulta de compras de materiales con actualización de stock y egreso.
  */
-public class RegistrarCompra implements RegistrarCompraUseCase {
-
-    public record ItemCompra(Integer idMaterial, BigDecimal cantidad, BigDecimal precioUnitario) {
-    }
+public class GestionarCompra implements GestionarCompraUseCase {
 
     private final CompraPort compraPort;
     private final ProveedorPort proveedorPort;
@@ -28,7 +38,7 @@ public class RegistrarCompra implements RegistrarCompraUseCase {
     private final EgresoPort egresoPort;
     private final Clock clock;
 
-    public RegistrarCompra(CompraPort compraPort, ProveedorPort proveedorPort, ObraPort obraPort,
+    public GestionarCompra(CompraPort compraPort, ProveedorPort proveedorPort, ObraPort obraPort,
                            MaterialPort materialPort, EgresoPort egresoPort, Clock clock) {
         this.compraPort = compraPort;
         this.proveedorPort = proveedorPort;
@@ -38,17 +48,25 @@ public class RegistrarCompra implements RegistrarCompraUseCase {
         this.clock = clock;
     }
 
-    public CompraMaterial ejecutar(UsuarioSesion actor, Integer idProveedor, Integer idObra,
-                                  Integer idMaterial, String tipoComprobante, String numeroComprobante,
-                                  LocalDate fechaCompra, BigDecimal cantidad, BigDecimal precioUnitario) {
-        return ejecutar(actor, idProveedor, idObra, tipoComprobante, numeroComprobante, fechaCompra,
+    @Override
+    public List<CompraMaterial> listar(UsuarioSesion actor) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.VER_COMPRAS);
+        return compraPort.findAllActivas();
+    }
+
+    @Override
+    public CompraMaterial registrar(UsuarioSesion actor, Integer idProveedor, Integer idObra,
+                                    Integer idMaterial, String tipoComprobante, String numeroComprobante,
+                                    LocalDate fechaCompra, BigDecimal cantidad, BigDecimal precioUnitario) {
+        return registrarConItems(actor, idProveedor, idObra, tipoComprobante, numeroComprobante, fechaCompra,
                 List.of(new ItemCompra(idMaterial, cantidad, precioUnitario)));
     }
 
-    public CompraMaterial ejecutar(UsuarioSesion actor, Integer idProveedor, Integer idObra,
-                                   String tipoComprobante, String numeroComprobante,
-                                   LocalDate fechaCompra, List<ItemCompra> items) {
-        PoliticaAcceso.verificar(actor, RolSistema.ALMACENERO, RolSistema.ADMIN);
+    @Override
+    public CompraMaterial registrarConItems(UsuarioSesion actor, Integer idProveedor, Integer idObra,
+                                            String tipoComprobante, String numeroComprobante,
+                                            LocalDate fechaCompra, List<ItemCompra> items) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.REGISTRAR_COMPRAS);
         if (idProveedor == null || idProveedor <= 0 || idObra == null || idObra <= 0) {
             throw new ReglaNegocioException("Selecciona proveedor y obra.");
         }
