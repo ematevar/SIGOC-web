@@ -3,8 +3,8 @@ package com.sigoc.sigoc_web.application.usecases;
 import com.sigoc.sigoc_web.domain.exceptions.RecursoNoEncontradoException;
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
 import com.sigoc.sigoc_web.domain.models.Empleado;
-import com.sigoc.sigoc_web.domain.models.RolSistema;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarEmpleadoUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.EmpleadoPort;
 import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
 import com.sigoc.sigoc_web.domain.validators.ValidadorSigoc;
@@ -12,20 +12,29 @@ import com.sigoc.sigoc_web.domain.validators.ValidadorSigoc;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
- * RF-10: crea o actualiza un trabajador validando DNI único de 8 dígitos y jornal positivo.
+ * CU-10: Gestión de trabajadores con validación de DNI único y jornal diario positivo.
  */
-public class GuardarEmpleado {
+public class GestionarEmpleado implements GestionarEmpleadoUseCase {
+
     private final EmpleadoPort empleadoPort;
 
-    public GuardarEmpleado(EmpleadoPort empleadoPort) {
+    public GestionarEmpleado(EmpleadoPort empleadoPort) {
         this.empleadoPort = empleadoPort;
     }
 
-    public Empleado ejecutar(UsuarioSesion actor, Integer idEmpleado, String nombresApellidos,
-                             String dni, String cargo, BigDecimal jornalDiario, LocalDate fechaIngreso) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.RESIDENTE);
+    @Override
+    public List<Empleado> listar(UsuarioSesion actor) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.VER_EMPLEADOS);
+        return empleadoPort.findAllActivos();
+    }
+
+    @Override
+    public Empleado guardar(UsuarioSesion actor, Integer idEmpleado, String nombresApellidos,
+                            String dni, String cargo, BigDecimal jornalDiario, LocalDate fechaIngreso) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.GESTIONAR_EMPLEADOS);
         if (nombresApellidos == null || nombresApellidos.isBlank()) {
             throw new ReglaNegocioException("Completa el campo obligatorio: nombres_apellidos.");
         }
@@ -61,5 +70,17 @@ public class GuardarEmpleado {
         empleado.setJornalDiario(jornalBd);
         empleado.setFechaIngreso(fechaIngreso);
         return empleadoPort.guardar(empleado);
+    }
+
+    @Override
+    public void eliminar(UsuarioSesion actor, Integer idEmpleado) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.GESTIONAR_EMPLEADOS);
+        if (idEmpleado == null || idEmpleado <= 0) {
+            throw new ReglaNegocioException("Selecciona un trabajador válido.");
+        }
+        empleadoPort.findById(idEmpleado)
+                .filter(Empleado::isActivo)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el trabajador."));
+        empleadoPort.desactivar(idEmpleado);
     }
 }

@@ -1,9 +1,7 @@
 package com.sigoc.sigoc_web.infrastructure.controllers;
 
-import com.sigoc.sigoc_web.application.usecases.EliminarEmpleado;
-import com.sigoc.sigoc_web.application.usecases.GuardarEmpleado;
-import com.sigoc.sigoc_web.application.usecases.ListarEmpleados;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarEmpleadoUseCase;
 import com.sigoc.sigoc_web.infrastructure.controllers.dto.PersonalDtos.EmpleadoResponse;
 import com.sigoc.sigoc_web.infrastructure.controllers.dto.PersonalDtos.GuardarEmpleadoRequest;
 import jakarta.validation.Valid;
@@ -14,33 +12,27 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * RF-10: gestión de trabajadores (Administrador y Residente de Obra).
+ * CU-10: Gestión de trabajadores.
  */
 @RestController
 @RequestMapping("/api/empleados")
 public class EmpleadoController {
 
-    private final ListarEmpleados listarEmpleados;
-    private final GuardarEmpleado guardarEmpleado;
-    private final EliminarEmpleado eliminarEmpleado;
+    private final GestionarEmpleadoUseCase gestionarEmpleado;
 
-    public EmpleadoController(ListarEmpleados listarEmpleados,
-                              GuardarEmpleado guardarEmpleado,
-                              EliminarEmpleado eliminarEmpleado) {
-        this.listarEmpleados = listarEmpleados;
-        this.guardarEmpleado = guardarEmpleado;
-        this.eliminarEmpleado = eliminarEmpleado;
+    public EmpleadoController(GestionarEmpleadoUseCase gestionarEmpleado) {
+        this.gestionarEmpleado = gestionarEmpleado;
     }
 
     @GetMapping
     public List<EmpleadoResponse> listar(UsuarioSesion actor) {
-        return listarEmpleados.ejecutar(actor).stream().map(EmpleadoResponse::de).toList();
+        return gestionarEmpleado.listar(actor).stream().map(EmpleadoResponse::de).toList();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public EmpleadoResponse crear(UsuarioSesion actor, @Valid @RequestBody GuardarEmpleadoRequest body) {
-        return EmpleadoResponse.de(guardarEmpleado.ejecutar(
+        return EmpleadoResponse.de(gestionarEmpleado.guardar(
                 actor, null, body.nombresApellidos(), body.dni(),
                 body.cargo(), body.jornalDiario(), body.fechaIngreso()));
     }
@@ -48,14 +40,14 @@ public class EmpleadoController {
     @PutMapping("/{id}")
     public EmpleadoResponse actualizar(UsuarioSesion actor, @PathVariable Integer id,
                                        @Valid @RequestBody GuardarEmpleadoRequest body) {
-        return EmpleadoResponse.de(guardarEmpleado.ejecutar(
+        return EmpleadoResponse.de(gestionarEmpleado.guardar(
                 actor, id, body.nombresApellidos(), body.dni(),
                 body.cargo(), body.jornalDiario(), body.fechaIngreso()));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(UsuarioSesion actor, @PathVariable Integer id) {
-        eliminarEmpleado.ejecutar(actor, id);
+        gestionarEmpleado.eliminar(actor, id);
         return ResponseEntity.noContent().build();
     }
 }
