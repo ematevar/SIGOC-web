@@ -27,6 +27,7 @@ final class Fakes {
             roles.put(2, new Rol(2, "RESIDENTE"));
             roles.put(3, new Rol(3, "ALMACENERO"));
             roles.put(4, new Rol(4, "CONTADOR"));
+            roles.put(5, new Rol(5, "GERENTE"));
         }
 
         @Override

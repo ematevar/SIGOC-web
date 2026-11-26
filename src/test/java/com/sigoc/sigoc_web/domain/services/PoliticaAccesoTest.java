@@ -31,10 +31,30 @@ class PoliticaAccesoTest {
     }
 
     @Test
-    void normalizaRolesHeredadosYValidaCuatroPerfiles() {
+    void normalizaRolesHeredadosYValidaCincoPerfilesIso27001() {
         assertEquals(RolSistema.RESIDENTE, RolSistema.desde("ingeniero").orElseThrow());
         assertEquals(RolSistema.CONTADOR, RolSistema.desde("contador").orElseThrow());
+        assertEquals(RolSistema.GERENTE, RolSistema.desde("gerente").orElseThrow());
         assertTrue(RolSistema.esValido("CONTADOR"));
+        assertTrue(RolSistema.esValido("GERENTE"));
         assertFalse(RolSistema.esValido("INVITADO"));
+    }
+
+    @Test
+    void segregacionFuncionesIso27001AislaAdminYGerente() {
+        assertDoesNotThrow(() -> PoliticaAcceso.verificar(actor(RolSistema.ADMIN), PoliticaAcceso.Permiso.GESTIONAR_USUARIOS));
+        assertThrows(AccesoDenegadoException.class,
+                () -> PoliticaAcceso.verificar(actor(RolSistema.ADMIN), PoliticaAcceso.Permiso.GESTIONAR_OBRAS));
+        assertThrows(AccesoDenegadoException.class,
+                () -> PoliticaAcceso.verificar(actor(RolSistema.ADMIN), PoliticaAcceso.Permiso.CONSULTAR_AUDITORIA));
+        assertThrows(AccesoDenegadoException.class,
+                () -> PoliticaAcceso.verificar(actor(RolSistema.ADMIN), PoliticaAcceso.Permiso.GESTIONAR_PLANILLAS));
+
+        assertDoesNotThrow(() -> PoliticaAcceso.verificar(actor(RolSistema.GERENTE), PoliticaAcceso.Permiso.CONSULTAR_AUDITORIA));
+        assertDoesNotThrow(() -> PoliticaAcceso.verificar(actor(RolSistema.GERENTE), PoliticaAcceso.Permiso.GESTIONAR_OBRAS));
+        assertThrows(AccesoDenegadoException.class,
+                () -> PoliticaAcceso.verificar(actor(RolSistema.GERENTE), PoliticaAcceso.Permiso.GESTIONAR_USUARIOS));
+        assertThrows(AccesoDenegadoException.class,
+                () -> PoliticaAcceso.verificar(actor(RolSistema.GERENTE), PoliticaAcceso.Permiso.PROCESAR_PAGO));
     }
 }
