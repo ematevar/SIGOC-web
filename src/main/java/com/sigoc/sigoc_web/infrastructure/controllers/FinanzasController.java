@@ -1,90 +1,81 @@
 package com.sigoc.sigoc_web.infrastructure.controllers;
 
-import com.sigoc.sigoc_web.application.usecases.*;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarEgresoUseCase;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarIngresoUseCase;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarPlanillaUseCase;
 import com.sigoc.sigoc_web.infrastructure.controllers.dto.FinanzasDtos.*;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
 
 /**
- * RF-13, RF-14, RF-15: ingresos, previsualización y cierre inmutable de planillas y egresos (Administrador y Contador).
+ * CU-13, CU-14, CU-15: Ingresos, previsualización y cierre inmutable de planillas, y egresos.
  */
 @RestController
 @RequestMapping("/api/finanzas")
 public class FinanzasController {
 
-    private final ListarIngresos listarIngresos;
-    private final RegistrarIngreso registrarIngreso;
-    private final ListarEgresos listarEgresos;
-    private final RegistrarEgreso registrarEgreso;
-    private final ListarCierresPlanilla listarCierresPlanilla;
-    private final CerrarPlanilla cerrarPlanilla;
-    private final PrevisualizarPlanilla previsualizarPlanilla;
+    private final GestionarIngresoUseCase gestionarIngreso;
+    private final GestionarEgresoUseCase gestionarEgreso;
+    private final GestionarPlanillaUseCase gestionarPlanilla;
 
-    public FinanzasController(ListarIngresos listarIngresos, RegistrarIngreso registrarIngreso,
-                              ListarEgresos listarEgresos, RegistrarEgreso registrarEgreso,
-                              ListarCierresPlanilla listarCierresPlanilla, CerrarPlanilla cerrarPlanilla,
-                              PrevisualizarPlanilla previsualizarPlanilla) {
-        this.listarIngresos = listarIngresos;
-        this.registrarIngreso = registrarIngreso;
-        this.listarEgresos = listarEgresos;
-        this.registrarEgreso = registrarEgreso;
-        this.listarCierresPlanilla = listarCierresPlanilla;
-        this.cerrarPlanilla = cerrarPlanilla;
-        this.previsualizarPlanilla = previsualizarPlanilla;
+    public FinanzasController(GestionarIngresoUseCase gestionarIngreso,
+                              GestionarEgresoUseCase gestionarEgreso,
+                              GestionarPlanillaUseCase gestionarPlanilla) {
+        this.gestionarIngreso = gestionarIngreso;
+        this.gestionarEgreso = gestionarEgreso;
+        this.gestionarPlanilla = gestionarPlanilla;
     }
 
     @GetMapping("/ingresos")
     public List<IngresoResponse> listarIngresos(UsuarioSesion actor,
                                                 @RequestParam(required = false) Integer idObra) {
-        return listarIngresos.ejecutar(actor, idObra).stream().map(IngresoResponse::de).toList();
+        return gestionarIngreso.listar(actor, idObra).stream().map(IngresoResponse::de).toList();
     }
 
     @PostMapping("/ingresos")
     @ResponseStatus(HttpStatus.CREATED)
     public IngresoResponse registrarIngreso(UsuarioSesion actor, @Valid @RequestBody IngresoRequest body) {
-        return IngresoResponse.de(registrarIngreso.ejecutar(
+        return IngresoResponse.de(gestionarIngreso.registrar(
                 actor, body.idObra(), body.fecha(), body.concepto(), body.monto()));
     }
 
     @GetMapping("/egresos")
     public List<EgresoResponse> listarEgresos(UsuarioSesion actor,
                                               @RequestParam(required = false) Integer idObra) {
-        return listarEgresos.ejecutar(actor, idObra).stream().map(EgresoResponse::de).toList();
+        return gestionarEgreso.listar(actor, idObra).stream().map(EgresoResponse::de).toList();
     }
 
     @PostMapping("/egresos")
     @ResponseStatus(HttpStatus.CREATED)
     public EgresoResponse registrarEgreso(UsuarioSesion actor, @Valid @RequestBody EgresoRequest body) {
-        return EgresoResponse.de(registrarEgreso.ejecutar(
+        return EgresoResponse.de(gestionarEgreso.registrar(
                 actor, body.idObra(), body.fecha(), body.concepto(), body.monto()));
     }
 
     @GetMapping("/planillas")
     public List<CierrePlanillaResponse> listarCierres(UsuarioSesion actor,
                                                       @RequestParam(required = false) Integer idObra) {
-        return listarCierresPlanilla.ejecutar(actor, idObra).stream().map(CierrePlanillaResponse::de).toList();
+        return gestionarPlanilla.listarCierres(actor, idObra).stream().map(CierrePlanillaResponse::de).toList();
     }
 
     @GetMapping("/planillas/preview")
-    public PrevisualizarPlanilla.ResumenPlanilla previsualizarPlanilla(UsuarioSesion actor,
-                                                                       @RequestParam Integer idObra,
-                                                                       @RequestParam LocalDate desde,
-                                                                       @RequestParam LocalDate hasta) {
-        return previsualizarPlanilla.ejecutar(actor, idObra, desde, hasta);
+    public GestionarPlanillaUseCase.ResumenPlanilla previsualizarPlanilla(UsuarioSesion actor,
+                                                                          @RequestParam Integer idObra,
+                                                                          @RequestParam LocalDate desde,
+                                                                          @RequestParam LocalDate hasta) {
+        return gestionarPlanilla.previsualizar(actor, idObra, desde, hasta);
     }
 
     @PostMapping("/planillas/cerrar")
     @ResponseStatus(HttpStatus.CREATED)
-    @Transactional
     public CierrePlanillaResponse cerrarPlanilla(UsuarioSesion actor,
                                                  @Valid @RequestBody CerrarPlanillaRequest body) {
-        return CierrePlanillaResponse.de(cerrarPlanilla.ejecutar(
+        return CierrePlanillaResponse.de(gestionarPlanilla.cerrar(
                 actor, body.idObra(), body.desde(), body.hasta()));
     }
 }
