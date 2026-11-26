@@ -1,91 +1,3 @@
-const sesion = {
-    username: document.body.dataset.username || '',
-    nombre: document.body.dataset.nombre || '',
-    rol: document.body.dataset.rol || '',
-    rolEtiqueta: document.body.dataset.rolEtiqueta || '',
-    requiereCambioClave: document.body.dataset.cambioClave === 'true',
-    csrfToken: document.body.dataset.csrf || ''
-};
-
-const MODULOS = [
-    { id: 'INICIO', label: 'Panel Principal', roles: ['ADMIN', 'RESIDENTE', 'ALMACENERO', 'CONTADOR'] },
-    { id: 'OBRAS', label: 'Obras', roles: ['ADMIN', 'CONTADOR'] },
-    { id: 'PARTIDAS', label: 'Partidas y Presupuesto', roles: ['ADMIN', 'RESIDENTE', 'CONTADOR'] },
-    { id: 'AVANCES', label: 'Avances Físicos', roles: ['RESIDENTE', 'ADMIN', 'CONTADOR'] },
-    { id: 'MATERIALES', label: 'Materiales y Stock', roles: ['ALMACENERO', 'ADMIN', 'CONTADOR'] },
-    { id: 'PROVEEDORES', label: 'Proveedores', roles: ['ADMIN', 'CONTADOR'] },
-    { id: 'COMPRAS', label: 'Compras de Materiales', roles: ['ALMACENERO', 'ADMIN', 'CONTADOR'] },
-    { id: 'CONSUMOS', label: 'Consumo de Materiales', roles: ['RESIDENTE', 'ADMIN', 'CONTADOR'] },
-    { id: 'PERSONAL', label: 'Personal', roles: ['ADMIN', 'RESIDENTE', 'CONTADOR'] },
-    { id: 'ASISTENCIA', label: 'Asistencia', roles: ['RESIDENTE', 'ADMIN', 'CONTADOR'] },
-    { id: 'PRODUCCION', label: 'Producción Diaria', roles: ['RESIDENTE', 'ADMIN', 'CONTADOR'] },
-    { id: 'FINANZAS', label: 'Finanzas y Planillas', roles: ['ADMIN', 'CONTADOR'] },
-    { id: 'CLIENTES', label: 'Clientes', roles: ['ADMIN', 'RESIDENTE', 'CONTADOR'] },
-    { id: 'VALORIZACIONES', label: 'Valorizaciones y Facturas', roles: ['ADMIN', 'RESIDENTE', 'CONTADOR'] },
-    { id: 'PAGOS', label: 'Pasarela de Pagos', roles: ['ADMIN', 'CONTADOR'] },
-    { id: 'REPORTES', label: 'Reportes Gerenciales', roles: ['ADMIN', 'CONTADOR'] },
-    { id: 'USUARIOS', label: 'Usuarios y Roles', roles: ['ADMIN'] }
-];
-
-const sidebarNav = document.getElementById('sidebarNav');
-const moduleContainer = document.getElementById('moduleContainer');
-const viewTitle = document.getElementById('viewTitle');
-const globalAlert = document.getElementById('globalAlert');
-const stockAlertBanner = document.getElementById('stockAlertBanner');
-const modalClave = document.getElementById('modalClave');
-const btnCancelarClave = document.getElementById('btnCancelarClave');
-const hoyIso = () => new Date().toISOString().slice(0, 10);
-
-let moduloActual = 'INICIO';
-
-function esc(v) {
-    if (v === null || v === undefined) return '';
-    return String(v)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function mostrarAlerta(msg, tipo = 'success') {
-    globalAlert.className = `alert ${tipo === 'error' ? 'alert-error' : tipo === 'warning' ? 'alert-warning' : 'alert-success'}`;
-    globalAlert.textContent = msg;
-    globalAlert.classList.remove('hidden');
-}
-
-function ocultarAlerta() {
-    globalAlert.classList.add('hidden');
-}
-
-async function api(url, options = {}) {
-    const opts = { credentials: 'same-origin', ...options };
-    const headers = { ...(opts.headers || {}) };
-    const method = (opts.method || 'GET').toUpperCase();
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && sesion.csrfToken) {
-        headers['X-CSRF-TOKEN'] = sesion.csrfToken;
-    }
-    if (opts.body && typeof opts.body !== 'string') {
-        headers['Content-Type'] = 'application/json';
-        opts.body = JSON.stringify(opts.body);
-    }
-    opts.headers = headers;
-    const res = await fetch(url, opts);
-    if (res.status === 401) {
-        window.location.href = '/login';
-        throw new Error('Sesión expirada.');
-    }
-    if (res.status === 204) return null;
-    const text = await res.text();
-    let json = null;
-    try { json = text ? JSON.parse(text) : null; } catch { /* ignore */ }
-    if (!res.ok) {
-        const msg = (json && (json.mensaje || json.message)) || `Error HTTP ${res.status}`;
-        throw new Error(msg);
-    }
-    return json;
-}
-
 function renderSidebar() {
     sidebarNav.innerHTML = '';
     MODULOS.filter(m => m.roles.includes(sesion.rol)).forEach(m => {
@@ -99,7 +11,7 @@ function renderSidebar() {
 }
 
 async function cargarAlertasStock() {
-    if (!['ADMIN', 'ALMACENERO'].includes(sesion.rol) || sesion.requiereCambioClave) {
+    if (!['GERENTE', 'ALMACENERO', 'RESIDENTE'].includes(sesion.rol) || sesion.requiereCambioClave) {
         stockAlertBanner.classList.add('hidden');
         return [];
     }
@@ -152,6 +64,7 @@ async function seleccionarModulo(id) {
             case 'VALORIZACIONES': await renderValorizaciones(); break;
             case 'PAGOS': await renderPagos(); break;
             case 'REPORTES': await renderReportes(); break;
+            case 'AUDITORIA': await renderAuditoria(); break;
             case 'USUARIOS': await renderUsuarios(); break;
             default: moduleContainer.innerHTML = '<div class="card">Módulo no disponible.</div>';
         }
@@ -248,7 +161,7 @@ async function renderObras() {
         api('/api/obras'),
         api('/api/clientes').catch(() => [])
     ]);
-    const puedeEscribir = sesion.rol === 'ADMIN';
+    const puedeEscribir = sesion.rol === 'GERENTE';
     let editId = null;
     moduleContainer.innerHTML = `
         ${puedeEscribir ? `
@@ -387,7 +300,7 @@ async function renderObras() {
 async function renderPartidas() {
     const obras = await api('/api/obras');
     const materiales = await api('/api/materiales');
-    const esAdmin = sesion.rol === 'ADMIN' || sesion.rol === 'RESIDENTE';
+    const esAdmin = sesion.rol === 'GERENTE' || sesion.rol === 'RESIDENTE';
     let idObraSel = obras[0] ? obras[0].idObra : 0;
 
     moduleContainer.innerHTML = `
@@ -617,7 +530,7 @@ async function renderAvances() {
 
 async function renderMateriales() {
     const materiales = await api('/api/materiales');
-    const esAdmin = sesion.rol === 'ADMIN' || sesion.rol === 'ALMACENERO';
+    const esAdmin = sesion.rol === 'ALMACENERO';
     await cargarAlertasStock();
 
     moduleContainer.innerHTML = `
@@ -681,7 +594,7 @@ async function renderMateriales() {
 
 async function renderProveedores() {
     const proveedores = await api('/api/proveedores');
-    const puedeEscribir = sesion.rol === 'ADMIN';
+    const puedeEscribir = sesion.rol === 'GERENTE';
     moduleContainer.innerHTML = `
         ${puedeEscribir ? `
         <div class="card">
@@ -735,7 +648,7 @@ async function renderCompras() {
     const [compras, obras, materiales, proveedores] = await Promise.all([
         api('/api/compras'), api('/api/obras'), api('/api/materiales'), api('/api/proveedores')
     ]);
-    const puedeEscribir = sesion.rol === 'ADMIN' || sesion.rol === 'ALMACENERO';
+    const puedeEscribir = sesion.rol === 'ALMACENERO';
     const matOpciones = materiales.map(m => `<option value="${m.idMaterial}">${esc(m.nombre)} (${esc(m.unidadMedida)})</option>`).join('');
 
     moduleContainer.innerHTML = `
@@ -892,7 +805,7 @@ async function renderConsumos() {
 
 async function renderPersonal() {
     const empleados = await api('/api/empleados');
-    const esAdmin = sesion.rol === 'ADMIN' || sesion.rol === 'RESIDENTE';
+    const esAdmin = sesion.rol === 'GERENTE' || sesion.rol === 'RESIDENTE';
     moduleContainer.innerHTML = `
         ${esAdmin ? `
         <div class="card">
@@ -1486,7 +1399,7 @@ function aplicarSoloDigitos(el) {
 
 async function renderClientes() {
     const clientes = await api('/api/clientes');
-    const esAdmin = sesion.rol === 'ADMIN';
+    const esAdmin = sesion.rol === 'GERENTE';
     let editId = null;
 
     moduleContainer.innerHTML = `
@@ -1616,7 +1529,7 @@ async function renderValorizaciones() {
     const [obras, valorizaciones, comprobantes] = await Promise.all([
         api('/api/obras'), api('/api/valorizaciones'), api('/api/valorizaciones/comprobantes')
     ]);
-    const esAdmin = sesion.rol === 'ADMIN' || sesion.rol === 'CONTADOR';
+    const esAdmin = sesion.rol === 'CONTADOR';
     const puedeValorizar = esAdmin || sesion.rol === 'RESIDENTE';
     const pendientes = valorizaciones.filter(v => v.estado === 'PENDIENTE');
     const inicioMes = hoyIso().slice(0, 7) + '-01';
@@ -1763,7 +1676,7 @@ async function renderPagos() {
     ]);
     const valsNoPagadas = valorizaciones.filter(v => v.estado !== 'PAGADA');
     const compsEmitidos = comprobantes.filter(c => c.estado === 'EMITIDO');
-    const esFinanzas = sesion.rol === 'ADMIN' || sesion.rol === 'CONTADOR';
+    const esFinanzas = sesion.rol === 'CONTADOR';
 
     moduleContainer.innerHTML = `
         <div class="card">
