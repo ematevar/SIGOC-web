@@ -1,20 +1,30 @@
 package com.sigoc.sigoc_web.application.usecases;
 
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
-import com.sigoc.sigoc_web.domain.models.*;
-import com.sigoc.sigoc_web.domain.ports.out.*;
+import com.sigoc.sigoc_web.domain.models.Asistencia;
+import com.sigoc.sigoc_web.domain.models.Empleado;
+import com.sigoc.sigoc_web.domain.models.Obra;
+import com.sigoc.sigoc_web.domain.models.Partida;
+import com.sigoc.sigoc_web.domain.models.ProduccionEmpleado;
+import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarProduccionUseCase;
+import com.sigoc.sigoc_web.domain.ports.out.AsistenciaPort;
+import com.sigoc.sigoc_web.domain.ports.out.EmpleadoPort;
+import com.sigoc.sigoc_web.domain.ports.out.ObraPort;
+import com.sigoc.sigoc_web.domain.ports.out.PartidaPort;
+import com.sigoc.sigoc_web.domain.ports.out.ProduccionPort;
 import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
- * RF-12: registra producción diaria de un trabajador en una partida activa verificando
- * que tenga asistencia válida (PRESENTE o TARDANZA) ese día en esa obra.
+ * CU-12: Registro y consulta de producción diaria por trabajador y partida.
  */
-public class RegistrarProduccion {
+public class GestionarProduccion implements GestionarProduccionUseCase {
 
     private final ProduccionPort produccionPort;
     private final EmpleadoPort empleadoPort;
@@ -23,7 +33,7 @@ public class RegistrarProduccion {
     private final AsistenciaPort asistenciaPort;
     private final Clock clock;
 
-    public RegistrarProduccion(ProduccionPort produccionPort, EmpleadoPort empleadoPort,
+    public GestionarProduccion(ProduccionPort produccionPort, EmpleadoPort empleadoPort,
                                PartidaPort partidaPort, ObraPort obraPort,
                                AsistenciaPort asistenciaPort, Clock clock) {
         this.produccionPort = produccionPort;
@@ -34,9 +44,16 @@ public class RegistrarProduccion {
         this.clock = clock;
     }
 
-    public ProduccionEmpleado ejecutar(UsuarioSesion actor, Integer idEmpleado, Integer idPartida,
-                                       LocalDate fecha, BigDecimal cantidadProducida) {
-        PoliticaAcceso.verificar(actor, RolSistema.RESIDENTE);
+    @Override
+    public List<ProduccionEmpleado> listar(UsuarioSesion actor, Integer idPartida) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.VER_PRODUCCION);
+        return idPartida != null ? produccionPort.findActivasByPartida(idPartida) : produccionPort.findAllActivas();
+    }
+
+    @Override
+    public ProduccionEmpleado registrar(UsuarioSesion actor, Integer idEmpleado, Integer idPartida,
+                                        LocalDate fecha, BigDecimal cantidadProducida) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.REGISTRAR_PRODUCCION);
         BigDecimal cantidadBd = cantidadProducida == null ? null : cantidadProducida.setScale(2, RoundingMode.HALF_UP);
         if (idEmpleado == null || idEmpleado <= 0 || idPartida == null || idPartida <= 0
                 || fecha == null || fecha.isAfter(LocalDate.now(clock))
@@ -72,7 +89,7 @@ public class RegistrarProduccion {
                 idEmpleado,
                 idPartida,
                 fecha,
-                cantidadProducida.setScale(2, RoundingMode.HALF_UP),
+                cantidadBd,
                 true,
                 null
         );
