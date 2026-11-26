@@ -80,11 +80,17 @@ class FacturacionPagosTest {
         PagosFake pagoPort = new PagosFake();
         IngresosFake ingresoPort = new IngresosFake();
         TipoCambioFake tcPort = new TipoCambioFake();
-        PasarelaFake pasarelaPort = new PasarelaFake();
 
         GestionarValorizacion regVal = new GestionarValorizacion(valPort, obraPort, partidaPort, avancePort, FIJO);
         GestionarComprobante emComp = new GestionarComprobante(compPort, valPort, obraPort, new ClientesFake(), new ComprobantePdfAdapter(), FIJO, 72);
-        ProcesarPago procPago = new ProcesarPago(pagoPort, obraPort, valPort, compPort, ingresoPort, tcPort, pasarelaPort, FIJO);
+        PasarelaExternaFake externaPort = new PasarelaExternaFake(compPort);
+        PasarelaTarjetaFake tarjetaPort = new PasarelaTarjetaFake();
+        GestionarCobranza cobranza = new GestionarCobranza(pagoPort, obraPort, valPort, compPort, ingresoPort,
+                new ClientesFake(), tcPort, externaPort, FIJO, 72);
+        ProcesarPagoExterno pagoExterno = new ProcesarPagoExterno(pagoPort, obraPort, valPort, compPort, ingresoPort,
+                tcPort, externaPort, TransaccionPort.directo(), FIJO, 72, null);
+        ProcesarPagoTarjeta pagoTarjeta = new ProcesarPagoTarjeta(pagoPort, obraPort, valPort, compPort, ingresoPort,
+                tarjetaPort, FIJO, 72, null);
 
         assertThrows(AccesoDenegadoException.class, () ->
                 regVal.registrar(ALMACENERO, 1, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31), null));
@@ -115,14 +121,14 @@ class FacturacionPagosTest {
         assertTrue(new String(pdf.contenido(), 0, 5, StandardCharsets.US_ASCII).startsWith("%PDF-"));
 
         assertThrows(ReglaNegocioException.class, () ->
-                procPago.ejecutar(CONTADOR, 1, val.getIdValorizacion(), comp.getIdComprobante(),
+                cobranza.registrarPagoInterno(CONTADOR, 1, val.getIdValorizacion(), comp.getIdComprobante(),
                         new BigDecimal("1.00"), "TRANSFERENCIA_SIMULADA", "OP-TAMPER"));
 
         assertThrows(ReglaNegocioException.class, () ->
                 emComp.emitir(CONTADOR, val.getIdValorizacion(), null, null));
 
         assertThrows(PagoRechazadoException.class, () ->
-                procPago.cobrarTarjetaSimuladaPublica(comp.getCodigoPago(), "4000000000000002", "JUAN PEREZ", "12/28", "123"));
+                pagoTarjeta.cobrarTarjetaPublica(comp.getCodigoPago(), "4000000000000002", "JUAN PEREZ", "12/28", "123"));
         assertEquals(1, pagoPort.datos.size());
         assertEquals("RECHAZADO", pagoPort.datos.get(1).getEstado());
         assertEquals("0002", pagoPort.datos.get(1).getUltimos4());
@@ -132,7 +138,8 @@ class FacturacionPagosTest {
         Comprobante renovado = emComp.renovarEnlace(CONTADOR, comp.getIdComprobante());
         assertNotEquals(linkAnterior, renovado.getCodigoPago());
 
-        Pago pago = procPago.capturarPayPalPublico(renovado.getCodigoPago(), "ORDER-PP-1");
+        Pago pago = pagoExterno.capturarPublico(renovado.getCodigoPago(), "ORDER-PP-1");
+        assertEquals("PENDIENTE_CAPTURA", externaPort.estadoObservadoDuranteCaptura);
         assertEquals("APROBADO", pago.getEstado());
         assertEquals("PAYPAL_SANDBOX", pago.getPasarela());
         assertEquals(1, ingresoPort.datos.size());
@@ -142,7 +149,7 @@ class FacturacionPagosTest {
         assertEquals("PAGADO", compPort.findById(comp.getIdComprobante()).orElseThrow().getEstado());
 
         assertThrows(ReglaNegocioException.class, () ->
-                procPago.capturarPayPalPublico(renovado.getCodigoPago(), "ORDER-PP-1"));
+                pagoExterno.capturarPublico(renovado.getCodigoPago(), "ORDER-PP-1"));
     }
 
     @Test
@@ -157,59 +164,57 @@ class FacturacionPagosTest {
         ComprobantesFake compPort = new ComprobantesFake();
         PagosFake pagoPort = new PagosFake();
         IngresosFake ingresoPort = new IngresosFake();
+        PasarelaExternaFake externaPort = new PasarelaExternaFake(compPort);
+        PasarelaTarjetaFake tarjetaPort = new PasarelaTarjetaFake();
 
         GestionarValorizacion regVal = new GestionarValorizacion(valPort, obraPort, partidaPort, avancePort, reloj);
         GestionarComprobante emComp = new GestionarComprobante(compPort, valPort, obraPort, new ClientesFake(), new ComprobantePdfAdapter(), reloj, 72);
-        ProcesarPago procPago = new ProcesarPago(pagoPort, obraPort, valPort, compPort, ingresoPort,
-                new TipoCambioFake(), new PasarelaFake(), reloj, 72);
-        ConsultarEnlacePagoPublico consulta = new ConsultarEnlacePagoPublico(compPort, valPort, obraPort,
-                new ClientesFake(), new TipoCambioFake(), new PasarelaFake(), reloj, pagoPort, 72);
+        ProcesarPagoExterno pagoExterno = new ProcesarPagoExterno(pagoPort, obraPort, valPort, compPort, ingresoPort,
+                new TipoCambioFake(), externaPort, TransaccionPort.directo(), reloj, 72, null);
+        ProcesarPagoTarjeta pagoTarjeta = new ProcesarPagoTarjeta(pagoPort, obraPort, valPort, compPort, ingresoPort,
+                tarjetaPort, reloj, 72, null);
+        GestionarCobranza consulta = new GestionarCobranza(pagoPort, obraPort, valPort, compPort, ingresoPort,
+                new ClientesFake(), new TipoCambioFake(), externaPort, reloj, 72);
 
         Valorizacion val = regVal.registrar(RESIDENTE, 1, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31), null);
         Comprobante comp = emComp.emitir(CONTADOR, val.getIdValorizacion(), null, null);
         String codigo = comp.getCodigoPago();
 
-        // 4 rechazos: avisa cuántos intentos quedan
         for (int i = 1; i <= 4; i++) {
             reloj.avanzar(Duration.ofMinutes(1));
             PagoRechazadoException ex = assertThrows(PagoRechazadoException.class, () ->
-                    procPago.cobrarTarjetaSimuladaPublica(codigo, "4000000000000002", "JUAN PEREZ", "12/28", "123"));
+                    pagoTarjeta.cobrarTarjetaPublica(codigo, "4000000000000002", "JUAN PEREZ", "12/28", "123"));
             assertTrue(ex.getMessage().contains("Te quedan " + (5 - i)), ex.getMessage());
         }
-        assertEquals(1, consulta.ejecutar(codigo).intentosRestantes());
+        assertEquals(1, consulta.consultarEnlacePublico(codigo).intentosRestantes());
 
-        // 5to rechazo: se bloquea
         reloj.avanzar(Duration.ofMinutes(1));
         PagoRechazadoException quinto = assertThrows(PagoRechazadoException.class, () ->
-                procPago.cobrarTarjetaSimuladaPublica(codigo, "4000000000000002", "JUAN PEREZ", "12/28", "123"));
+                pagoTarjeta.cobrarTarjetaPublica(codigo, "4000000000000002", "JUAN PEREZ", "12/28", "123"));
         assertTrue(quinto.getMessage().contains("bloqueado"), quinto.getMessage());
-        assertTrue(consulta.ejecutar(codigo).bloqueado());
+        assertTrue(consulta.consultarEnlacePublico(codigo).bloqueado());
 
-        // Bloqueado: ni tarjeta válida ni PayPal pasan, y no se guarda otro intento
         int intentosGuardados = pagoPort.datos.size();
         reloj.avanzar(Duration.ofMinutes(10));
         assertThrows(ReglaNegocioException.class, () ->
-                procPago.cobrarTarjetaSimuladaPublica(codigo, "4111111111111111", "JUAN PEREZ", "12/28", "123"));
+                pagoTarjeta.cobrarTarjetaPublica(codigo, "4111111111111111", "JUAN PEREZ", "12/28", "123"));
         assertThrows(ReglaNegocioException.class, () ->
-                procPago.crearOrdenPayPalPublica(codigo, "http://ok", "http://cancel"));
+                pagoExterno.crearOrdenPublica(codigo, "http://ok", "http://cancel"));
         assertEquals(intentosGuardados, pagoPort.datos.size());
 
-        // Pasados 30 minutos vuelve a tener 5 intentos
         reloj.avanzar(Duration.ofMinutes(21));
-        assertFalse(consulta.ejecutar(codigo).bloqueado());
-        assertEquals(5, consulta.ejecutar(codigo).intentosRestantes());
+        assertFalse(consulta.consultarEnlacePublico(codigo).bloqueado());
+        assertEquals(5, consulta.consultarEnlacePublico(codigo).intentosRestantes());
 
-        // Otro rechazo y luego renovar: el enlace nuevo empieza de cero
         reloj.avanzar(Duration.ofMinutes(1));
         assertThrows(PagoRechazadoException.class, () ->
-                procPago.cobrarTarjetaSimuladaPublica(codigo, "4000000000000002", "JUAN PEREZ", "12/28", "123"));
-        assertEquals(4, consulta.ejecutar(codigo).intentosRestantes());
+                pagoTarjeta.cobrarTarjetaPublica(codigo, "4000000000000002", "JUAN PEREZ", "12/28", "123"));
+        assertEquals(4, consulta.consultarEnlacePublico(codigo).intentosRestantes());
         reloj.avanzar(Duration.ofMinutes(1));
         Comprobante renovado = emComp.renovarEnlace(CONTADOR, comp.getIdComprobante());
-        assertEquals(5, consulta.ejecutar(renovado.getCodigoPago()).intentosRestantes());
+        assertEquals(5, consulta.consultarEnlacePublico(renovado.getCodigoPago()).intentosRestantes());
 
-        // Con el enlace renovado el pago aprobado funciona
-        Pago pago = procPago.cobrarTarjetaSimuladaPublica(renovado.getCodigoPago(), "4111111111111111", "JUAN PEREZ", "12/28", "123");
+        Pago pago = pagoTarjeta.cobrarTarjetaPublica(renovado.getCodigoPago(), "4111111111111111", "JUAN PEREZ", "12/28", "123");
         assertEquals("APROBADO", pago.getEstado());
     }
 
@@ -346,17 +351,30 @@ class FacturacionPagosTest {
         @Override public TipoCambio guardar(TipoCambio tc) { tc.setIdTipoCambio(1); actual = tc; return tc; }
     }
 
-    private static final class PasarelaFake implements PasarelaPagoPort {
+    private static final class PasarelaExternaFake implements PasarelaPagoExternaPort {
+        private final ComprobantesFake comprobantes;
+        String estadoObservadoDuranteCaptura;
+
+        PasarelaExternaFake(ComprobantesFake comprobantes) {
+            this.comprobantes = comprobantes;
+        }
+
+        @Override public boolean estaHabilitada() { return true; }
+        @Override public String nombreProveedor() { return "PAYPAL_SANDBOX"; }
+        @Override public OrdenExterna crearOrden(BigDecimal m, String mon, String ref, String desc, String ret, String can) {
+            return new OrdenExterna("ORDER-PP-1", "CREATED", "https://sandbox.paypal.com/checkoutnow?token=ORDER-PP-1");
+        }
+        @Override public ResultadoCaptura capturarOrden(String idOrdenExterna) {
+            estadoObservadoDuranteCaptura = comprobantes.datos.values().stream()
+                    .findFirst().map(Comprobante::getEstado).orElse(null);
+            return new ResultadoCaptura(true, "CAP-" + idOrdenExterna, new BigDecimal("78666.67"), "USD", "COMPLETED");
+        }
+    }
+
+    private static final class PasarelaTarjetaFake implements PasarelaTarjetaPort {
         private final PasarelaSimuladaAdapter simulada = new PasarelaSimuladaAdapter(FIJO);
-        @Override public boolean paypalHabilitado() { return true; }
-        @Override public OrdenPayPal crearOrdenPayPal(BigDecimal m, String mon, String ref, String desc, String ret, String can) {
-            return new OrdenPayPal("ORDER-PP-1", "CREATED", "https://sandbox.paypal.com/checkoutnow?token=ORDER-PP-1");
-        }
-        @Override public ResultadoCapturaPayPal capturarOrdenPayPal(String idOrdenExterna) {
-            return new ResultadoCapturaPayPal(true, "CAP-" + idOrdenExterna, new BigDecimal("78666.67"), "USD", "COMPLETED");
-        }
-        @Override public ResultadoTarjetaSimulada cobrarTarjetaSimulada(String n, String t, String v, String c, BigDecimal m) {
-            return simulada.cobrar(n, t, v, c, m);
+        @Override public ResultadoTarjeta cobrarTarjeta(String n, String t, String v, String c, BigDecimal m) {
+            return simulada.cobrarTarjeta(n, t, v, c, m);
         }
     }
 }
