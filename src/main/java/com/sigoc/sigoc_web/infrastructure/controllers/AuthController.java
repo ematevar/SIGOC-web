@@ -4,6 +4,7 @@ import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
 import com.sigoc.sigoc_web.domain.ports.in.AutenticarUsuarioUseCase;
 import com.sigoc.sigoc_web.domain.ports.in.CambiarClaveUseCase;
 import com.sigoc.sigoc_web.infrastructure.controllers.dto.AuthDtos.*;
+import com.sigoc.sigoc_web.infrastructure.security.CaptchaImagenRenderer;
 import com.sigoc.sigoc_web.infrastructure.security.SesionHttp;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -20,17 +21,20 @@ public class AuthController {
 
     private final AutenticarUsuarioUseCase autenticarUsuario;
     private final CambiarClaveUseCase cambiarClave;
+    private final CaptchaImagenRenderer captchaImagenRenderer;
 
-    public AuthController(AutenticarUsuarioUseCase autenticarUsuario, CambiarClaveUseCase cambiarClave) {
+    public AuthController(AutenticarUsuarioUseCase autenticarUsuario, CambiarClaveUseCase cambiarClave,
+                          CaptchaImagenRenderer captchaImagenRenderer) {
         this.autenticarUsuario = autenticarUsuario;
         this.cambiarClave = cambiarClave;
+        this.captchaImagenRenderer = captchaImagenRenderer;
     }
 
     @GetMapping("/captcha")
     public CaptchaResponse captcha(HttpServletRequest request) {
         String codigo = autenticarUsuario.generarCaptcha();
         request.getSession(true).setAttribute(SesionHttp.ATTR_CAPTCHA, codigo);
-        return new CaptchaResponse(codigo);
+        return new CaptchaResponse(captchaImagenRenderer.renderizarPngDataUri(codigo));
     }
 
     @PostMapping("/login")

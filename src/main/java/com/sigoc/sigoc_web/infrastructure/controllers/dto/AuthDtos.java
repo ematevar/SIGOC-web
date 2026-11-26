@@ -7,7 +7,7 @@ public final class AuthDtos {
     private AuthDtos() {
     }
 
-    public record CaptchaResponse(String captcha) {
+    public record CaptchaResponse(String imagenDataUri) {
     }
 
     public record LoginRequest(@NotBlank String usuario, @NotBlank String clave, @NotBlank String captcha) {

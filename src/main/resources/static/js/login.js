@@ -12,7 +12,11 @@ async function cargarCaptcha() {
             throw new Error('HTTP ' + res.status);
         }
         const data = await res.json();
-        captchaDisplay.textContent = data.captcha || 'ERR';
+        if (data.imagenDataUri) {
+            captchaDisplay.innerHTML = `<img src="${data.imagenDataUri}" alt="Código CAPTCHA" style="height:46px;width:auto;border-radius:6px;display:block;">`;
+        } else {
+            captchaDisplay.textContent = 'ERR';
+        }
         captchaInput.value = '';
     } catch {
         captchaDisplay.textContent = 'ERR';
