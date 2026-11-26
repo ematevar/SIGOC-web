@@ -27,8 +27,11 @@ import java.util.Set;
 @Component
 public class AutenticacionInterceptor implements HandlerInterceptor {
 
-    static final Set<String> RUTAS_PUBLICAS = Set.of("/api/auth/captcha", "/api/auth/login");
+    static final Set<String> RUTAS_PUBLICAS = Set.of(
+            "/api/auth/captcha", "/api/auth/login", "/actuator/health");
     static final String PREFIJO_PUBLICO = "/api/public/";
+    static final Set<String> PREFIJOS_SOLO_ADMIN = Set.of(
+            "/actuator/", "/swagger-ui", "/v3/api-docs");
     static final Set<String> RUTAS_CON_CLAVE_INICIAL = Set.of(
             "/api/auth/cambiar-clave", "/api/auth/logout", "/api/auth/sesion");
     static final Set<String> METODOS_SEGUROS = Set.of("GET", "HEAD", "OPTIONS");
@@ -70,8 +73,17 @@ public class AutenticacionInterceptor implements HandlerInterceptor {
                     "Debe cambiar la contraseña inicial antes de usar el sistema.");
             return false;
         }
+        if (esRutaSoloAdmin(ruta) && usuario.rol() != RolSistema.ADMIN) {
+            escribirError(response, HttpStatus.FORBIDDEN,
+                    "Solo el perfil ADMIN puede acceder a endpoints técnicos y documentación OpenAPI.");
+            return false;
+        }
         ContextoAuditoria.fijarUsuario(usuario.idUsuario());
         return true;
+    }
+
+    private boolean esRutaSoloAdmin(String ruta) {
+        return PREFIJOS_SOLO_ADMIN.stream().anyMatch(ruta::startsWith);
     }
 
     @Override

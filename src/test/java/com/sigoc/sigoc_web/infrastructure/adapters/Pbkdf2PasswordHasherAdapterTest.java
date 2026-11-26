@@ -9,9 +9,9 @@ class Pbkdf2PasswordHasherAdapterTest {
     private final Pbkdf2PasswordHasherAdapter hasher = new Pbkdf2PasswordHasherAdapter();
 
     @Test
-    void hashYVerificacionCompatiblesConDesktop() {
+    void hashYVerificacionCompatiblesConDesktopYOwasp600k() {
         String h = hasher.hash("ClaveSegura123");
-        assertTrue(h.startsWith("PBKDF2$120000$"));
+        assertTrue(h.startsWith("PBKDF2$600000$"));
         assertTrue(hasher.verificar("ClaveSegura123", h));
         assertFalse(hasher.verificar("Otra", h));
         assertFalse(hasher.esClaveInicial(h));

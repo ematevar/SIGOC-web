@@ -17,7 +17,7 @@ import java.util.Base64;
 @Component
 public class Pbkdf2PasswordHasherAdapter implements PasswordHasherPort {
 
-    private static final int RONDAS = 120_000;
+    private static final int RONDAS = 600_000;
     private static final int BITS = 256;
     /** Sal de la cuenta inicial sembrada en sigoc_datos_iniciales.sql. */
     private static final String SAL_CLAVE_INICIAL = "U0lHT0MtREVNT1NUUkFDSU9OLVNBTFQ=";

@@ -23,7 +23,13 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(autenticacionInterceptor).addPathPatterns("/api/**");
+        registry.addInterceptor(autenticacionInterceptor).addPathPatterns(
+                "/api/**",
+                "/actuator/**",
+                "/swagger-ui/**",
+                "/swagger-ui.html",
+                "/v3/api-docs/**"
+        );
     }
 
     @Override
