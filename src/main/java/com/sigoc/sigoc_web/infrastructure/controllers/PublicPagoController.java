@@ -1,48 +1,50 @@
 package com.sigoc.sigoc_web.infrastructure.controllers;
 
-import com.sigoc.sigoc_web.application.usecases.ConsultarEnlacePagoPublico;
-import com.sigoc.sigoc_web.application.usecases.ConsultarEnlacePagoPublico.DetalleEnlacePublico;
-import com.sigoc.sigoc_web.application.usecases.GenerarPdfComprobante;
-import com.sigoc.sigoc_web.application.usecases.ProcesarPago;
-import com.sigoc.sigoc_web.application.usecases.ProcesarPago.OrdenPayPalPublica;
-import com.sigoc.sigoc_web.domain.exceptions.PagoRechazadoException;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarCobranzaUseCase;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarCobranzaUseCase.DetalleEnlacePublico;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarComprobanteUseCase;
+import com.sigoc.sigoc_web.domain.ports.in.ProcesarPagoExternoUseCase;
+import com.sigoc.sigoc_web.domain.ports.in.ProcesarPagoExternoUseCase.OrdenPagoExterno;
+import com.sigoc.sigoc_web.domain.ports.in.ProcesarPagoTarjetaUseCase;
 import com.sigoc.sigoc_web.infrastructure.controllers.dto.FacturacionPagosDtos.PagoResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
- * Portal público de pago (sin login interno) identificado por token de 72 horas.
+ * CU-19, CU-20, CU-22, CU-24: Portal público de pago identificado por token de 72 horas.
  */
 @RestController
 @RequestMapping("/api/public/pagos/{codigoPago}")
 public class PublicPagoController {
 
-    private final ConsultarEnlacePagoPublico consultarEnlace;
-    private final ProcesarPago procesarPago;
-    private final GenerarPdfComprobante generarPdfComprobante;
+    private final GestionarCobranzaUseCase gestionarCobranza;
+    private final ProcesarPagoExternoUseCase procesarPagoExterno;
+    private final ProcesarPagoTarjetaUseCase procesarPagoTarjeta;
+    private final GestionarComprobanteUseCase gestionarComprobante;
 
-    public PublicPagoController(ConsultarEnlacePagoPublico consultarEnlace,
-                                ProcesarPago procesarPago,
-                                GenerarPdfComprobante generarPdfComprobante) {
-        this.consultarEnlace = consultarEnlace;
-        this.procesarPago = procesarPago;
-        this.generarPdfComprobante = generarPdfComprobante;
+    public PublicPagoController(GestionarCobranzaUseCase gestionarCobranza,
+                                ProcesarPagoExternoUseCase procesarPagoExterno,
+                                ProcesarPagoTarjetaUseCase procesarPagoTarjeta,
+                                GestionarComprobanteUseCase gestionarComprobante) {
+        this.gestionarCobranza = gestionarCobranza;
+        this.procesarPagoExterno = procesarPagoExterno;
+        this.procesarPagoTarjeta = procesarPagoTarjeta;
+        this.gestionarComprobante = gestionarComprobante;
     }
 
     @GetMapping
     public DetalleEnlacePublico detalle(@PathVariable String codigoPago) {
-        return consultarEnlace.ejecutar(codigoPago);
+        return gestionarCobranza.consultarEnlacePublico(codigoPago);
     }
 
     @GetMapping("/pdf")
     public ResponseEntity<byte[]> pdfPublico(@PathVariable String codigoPago) {
-        GenerarPdfComprobante.ResultadoPdf pdf = generarPdfComprobante.ejecutarPublico(codigoPago);
+        GestionarComprobanteUseCase.ResultadoPdf pdf = gestionarComprobante.generarPdfPublico(codigoPago);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + pdf.nombreArchivo() + "\"")
                 .contentType(MediaType.APPLICATION_PDF)
@@ -50,30 +52,28 @@ public class PublicPagoController {
     }
 
     @PostMapping("/simulada")
-    @Transactional(noRollbackFor = PagoRechazadoException.class)
     public PagoResponse pagarTarjetaSimulada(@PathVariable String codigoPago,
                                              @Valid @RequestBody CobroTarjetaRequest body) {
-        return PagoResponse.de(procesarPago.cobrarTarjetaSimuladaPublica(
+        return PagoResponse.de(procesarPagoTarjeta.cobrarTarjetaPublica(
                 codigoPago, body.numeroTarjeta(), body.titular(), body.vencimiento(), body.cvv()));
     }
 
     @PostMapping("/paypal/orden")
-    public OrdenPayPalPublica crearOrdenPayPal(@PathVariable String codigoPago) {
+    public OrdenPagoExterno crearOrdenPayPal(@PathVariable String codigoPago) {
         String baseUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path("/pago/{codigoPago}")
                 .buildAndExpand(codigoPago)
                 .toUriString();
-        return procesarPago.crearOrdenPayPalPublica(
+        return procesarPagoExterno.crearOrdenPublica(
                 codigoPago,
                 baseUrl + "?paypalResultado=ok",
                 baseUrl + "?paypalResultado=cancelado");
     }
 
     @PostMapping("/paypal/capturar")
-    @Transactional(noRollbackFor = PagoRechazadoException.class)
     public PagoResponse capturarOrdenPayPal(@PathVariable String codigoPago,
                                             @Valid @RequestBody CapturaPayPalRequest body) {
-        return PagoResponse.de(procesarPago.capturarPayPalPublico(codigoPago, body.idOrdenExterna()));
+        return PagoResponse.de(procesarPagoExterno.capturarPublico(codigoPago, body.idOrdenExterna()));
     }
 
     public record CobroTarjetaRequest(
