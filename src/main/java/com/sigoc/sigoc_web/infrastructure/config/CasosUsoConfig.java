@@ -1,26 +1,25 @@
 package com.sigoc.sigoc_web.infrastructure.config;
 
 import com.sigoc.sigoc_web.application.usecases.*;
-import com.sigoc.sigoc_web.domain.models.Comprobante;
-import com.sigoc.sigoc_web.domain.models.Pago;
-import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
-import com.sigoc.sigoc_web.domain.models.Valorizacion;
-import com.sigoc.sigoc_web.domain.ports.in.GestionarValorizacionPagoUseCase;
+import com.sigoc.sigoc_web.domain.exceptions.PagoRechazadoException;
+import com.sigoc.sigoc_web.domain.ports.in.*;
 import com.sigoc.sigoc_web.domain.ports.out.*;
 import com.sigoc.sigoc_web.domain.services.CaptchaService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
 
-import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.LocalDate;
 import java.time.ZoneId;
 
+/**
+ * Cableado de los 25 puertos de entrada (CU-01 a CU-25) con límites transaccionales
+ * aplicados en la frontera de infraestructura para mantener domain y application
+ * libres de dependencias de Spring/Jakarta.
+ */
 @Configuration
 public class CasosUsoConfig {
-
-    // ---------- Infraestructura compartida ----------
 
     @Bean
     public Clock clock() {
@@ -32,389 +31,241 @@ public class CasosUsoConfig {
         return new CaptchaService();
     }
 
-    // ---------- Seguridad y usuarios (RF-01, RF-02) ----------
+    // ---------- Seguridad, Usuarios y Auditoría (CU-01, CU-02, CU-23, CU-25) ----------
 
     @Bean
-    public ListarRoles listarRoles(RolPort port) {
-        return new ListarRoles(port);
+    public AutenticarUsuarioUseCase autenticarUsuarioUseCase(UsuarioPort usuarioPort, PasswordHasherPort hasher,
+                                                             IntentosLoginPort intentos, CaptchaService captcha,
+                                                             Clock clock, AuditoriaEventoPort auditoriaPort,
+                                                             PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(AutenticarUsuarioUseCase.class,
+                new AutenticarUsuario(usuarioPort, hasher, intentos, captcha, clock, auditoriaPort), txManager);
     }
 
     @Bean
-    public GenerarCaptcha generarCaptcha(CaptchaService captcha) {
-        return new GenerarCaptcha(captcha);
+    public CambiarClaveUseCase cambiarClaveUseCase(UsuarioPort usuarioPort, PasswordHasherPort hasher,
+                                                   AuditoriaEventoPort auditoriaPort, Clock clock,
+                                                   PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(CambiarClaveUseCase.class,
+                new CambiarClave(usuarioPort, hasher, auditoriaPort, clock), txManager, true);
     }
 
     @Bean
-    public IniciarSesion iniciarSesion(UsuarioPort usuarioPort, PasswordHasherPort hasher,
-                                       IntentosLoginPort intentos, CaptchaService captcha, Clock clock) {
-        return new IniciarSesion(usuarioPort, hasher, intentos, captcha, clock);
+    public GestionarUsuarioUseCase gestionarUsuarioUseCase(UsuarioPort usuarioPort, RolPort rolPort,
+                                                           PasswordHasherPort hasher, AuditoriaEventoPort auditoriaPort,
+                                                           Clock clock, PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarUsuarioUseCase.class,
+                new GestionarUsuario(usuarioPort, rolPort, hasher, auditoriaPort, clock), txManager);
     }
 
     @Bean
-    public CambiarClave cambiarClave(UsuarioPort usuarioPort, PasswordHasherPort hasher) {
-        return new CambiarClave(usuarioPort, hasher);
+    public ConsultarAuditoriaUseCase consultarAuditoriaUseCase(AuditoriaEventoPort auditoriaPort,
+                                                               PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(ConsultarAuditoriaUseCase.class,
+                new ConsultarAuditoria(auditoriaPort), txManager);
+    }
+
+    // ---------- Clientes, Obras, Partidas y Avances (CU-03, CU-04, CU-05, CU-17) ----------
+
+    @Bean
+    public GestionarClienteUseCase gestionarClienteUseCase(ClientePort clientePort,
+                                                           PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarClienteUseCase.class,
+                new GestionarCliente(clientePort), txManager);
     }
 
     @Bean
-    public ListarUsuarios listarUsuarios(UsuarioPort usuarioPort) {
-        return new ListarUsuarios(usuarioPort);
+    public GestionarObraUseCase gestionarObraUseCase(ObraPort obraPort, ClientePort clientePort,
+                                                     AuditoriaEventoPort auditoriaPort, Clock clock,
+                                                     PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarObraUseCase.class,
+                new GestionarObra(obraPort, clientePort, auditoriaPort, clock), txManager);
     }
 
     @Bean
-    public CrearUsuario crearUsuario(UsuarioPort usuarioPort, RolPort rolPort, PasswordHasherPort hasher) {
-        return new CrearUsuario(usuarioPort, rolPort, hasher);
+    public GestionarPartidaUseCase gestionarPartidaUseCase(PartidaPort partidaPort, ObraPort obraPort,
+                                                           PartidaMaterialPort partidaMaterialPort,
+                                                           PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarPartidaUseCase.class,
+                new GestionarPartida(partidaPort, obraPort, partidaMaterialPort), txManager);
     }
 
     @Bean
-    public ActualizarUsuario actualizarUsuario(UsuarioPort usuarioPort, RolPort rolPort) {
-        return new ActualizarUsuario(usuarioPort, rolPort);
+    public GestionarAvanceUseCase gestionarAvanceUseCase(AvancePartidaPort avancePort, PartidaPort partidaPort,
+                                                         ObraPort obraPort, Clock clock,
+                                                         PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarAvanceUseCase.class,
+                new GestionarAvance(avancePort, partidaPort, obraPort, clock), txManager);
+    }
+
+    // ---------- Logística: Materiales, Compras, Consumos y Proveedores (CU-06..CU-09) ----------
+
+    @Bean
+    public GestionarMaterialUseCase gestionarMaterialUseCase(MaterialPort materialPort,
+                                                             PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarMaterialUseCase.class,
+                new GestionarMaterial(materialPort), txManager);
     }
 
     @Bean
-    public CambiarEstadoUsuario cambiarEstadoUsuario(UsuarioPort usuarioPort) {
-        return new CambiarEstadoUsuario(usuarioPort);
-    }
-
-    // ---------- Obras y partidas (RF-03, RF-04, RF-16b) ----------
-
-    @Bean
-    public ListarObras listarObras(ObraPort obraPort) {
-        return new ListarObras(obraPort);
+    public GestionarCompraUseCase gestionarCompraUseCase(CompraPort compraPort, ProveedorPort proveedorPort,
+                                                         ObraPort obraPort, MaterialPort materialPort,
+                                                         EgresoPort egresoPort, Clock clock,
+                                                         PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarCompraUseCase.class,
+                new GestionarCompra(compraPort, proveedorPort, obraPort, materialPort, egresoPort, clock), txManager);
     }
 
     @Bean
-    public GuardarObra guardarObra(ObraPort obraPort, ClientePort clientePort) {
-        return new GuardarObra(obraPort, clientePort);
+    public GestionarConsumoUseCase gestionarConsumoUseCase(ConsumoPort consumoPort, MaterialPort materialPort,
+                                                           PartidaPort partidaPort, ObraPort obraPort, Clock clock,
+                                                           PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarConsumoUseCase.class,
+                new GestionarConsumo(consumoPort, materialPort, partidaPort, obraPort, clock), txManager);
     }
 
     @Bean
-    public EliminarObra eliminarObra(ObraPort obraPort) {
-        return new EliminarObra(obraPort);
+    public GestionarProveedorUseCase gestionarProveedorUseCase(ProveedorPort proveedorPort,
+                                                               PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarProveedorUseCase.class,
+                new GestionarProveedor(proveedorPort), txManager);
+    }
+
+    // ---------- Personal, Asistencia y Producción (CU-10..CU-12) ----------
+
+    @Bean
+    public GestionarEmpleadoUseCase gestionarEmpleadoUseCase(EmpleadoPort empleadoPort,
+                                                             PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarEmpleadoUseCase.class,
+                new GestionarEmpleado(empleadoPort), txManager);
     }
 
     @Bean
-    public CerrarObra cerrarObra(ObraPort obraPort) {
-        return new CerrarObra(obraPort);
+    public GestionarAsistenciaUseCase gestionarAsistenciaUseCase(AsistenciaPort asistenciaPort,
+                                                                 EmpleadoPort empleadoPort, ObraPort obraPort,
+                                                                 Clock clock, PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarAsistenciaUseCase.class,
+                new GestionarAsistencia(asistenciaPort, empleadoPort, obraPort, clock), txManager);
     }
 
     @Bean
-    public ListarPartidas listarPartidas(PartidaPort partidaPort) {
-        return new ListarPartidas(partidaPort);
+    public GestionarProduccionUseCase gestionarProduccionUseCase(ProduccionPort produccionPort,
+                                                                 EmpleadoPort empleadoPort, PartidaPort partidaPort,
+                                                                 ObraPort obraPort, AsistenciaPort asistenciaPort,
+                                                                 Clock clock, PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarProduccionUseCase.class,
+                new GestionarProduccion(produccionPort, empleadoPort, partidaPort, obraPort, asistenciaPort, clock),
+                txManager);
+    }
+
+    // ---------- Finanzas, Planillas y Reportes (CU-13..CU-16) ----------
+
+    @Bean
+    public GestionarIngresoUseCase gestionarIngresoUseCase(IngresoPort ingresoPort, ObraPort obraPort,
+                                                           Clock clock, PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarIngresoUseCase.class,
+                new GestionarIngreso(ingresoPort, obraPort, clock), txManager);
     }
 
     @Bean
-    public GuardarPartida guardarPartida(PartidaPort partidaPort, ObraPort obraPort) {
-        return new GuardarPartida(partidaPort, obraPort);
+    public GestionarPlanillaUseCase gestionarPlanillaUseCase(CierrePlanillaPort cierrePort, ObraPort obraPort,
+                                                             AsistenciaPort asistenciaPort, EmpleadoPort empleadoPort,
+                                                             EgresoPort egresoPort, Clock clock,
+                                                             AuditoriaEventoPort auditoriaPort,
+                                                             PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarPlanillaUseCase.class,
+                new GestionarPlanilla(cierrePort, obraPort, asistenciaPort, empleadoPort, egresoPort, clock, auditoriaPort),
+                txManager);
     }
 
     @Bean
-    public EliminarPartida eliminarPartida(PartidaPort partidaPort) {
-        return new EliminarPartida(partidaPort);
+    public GestionarEgresoUseCase gestionarEgresoUseCase(EgresoPort egresoPort, ObraPort obraPort,
+                                                         Clock clock, PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarEgresoUseCase.class,
+                new GestionarEgreso(egresoPort, obraPort, clock), txManager);
     }
 
     @Bean
-    public ListarMaterialesPartida listarMaterialesPartida(PartidaPort partidaPort,
-                                                           PartidaMaterialPort partidaMaterialPort) {
-        return new ListarMaterialesPartida(partidaPort, partidaMaterialPort);
+    public GenerarReporteUseCase generarReporteUseCase(ReporteQueryPort reporteQueryPort,
+                                                       ExportadorReportePort exportadorPort,
+                                                       PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GenerarReporteUseCase.class,
+                new GestionarReporte(reporteQueryPort, exportadorPort), txManager);
+    }
+
+    // ---------- Valorizaciones, Comprobantes, Tipo de Cambio y Pagos (CU-18..CU-22, CU-24) ----------
+
+    @Bean
+    public GestionarValorizacionUseCase gestionarValorizacionUseCase(ValorizacionPort valorizacionPort,
+                                                                     ObraPort obraPort, PartidaPort partidaPort,
+                                                                     AvancePartidaPort avancePartidaPort, Clock clock,
+                                                                     PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarValorizacionUseCase.class,
+                new GestionarValorizacion(valorizacionPort, obraPort, partidaPort, avancePartidaPort, clock),
+                txManager);
     }
 
     @Bean
-    public AsignarMaterialPartida asignarMaterialPartida(PartidaPort partidaPort, ObraPort obraPort,
-                                                         PartidaMaterialPort partidaMaterialPort) {
-        return new AsignarMaterialPartida(partidaPort, obraPort, partidaMaterialPort);
+    public GestionarComprobanteUseCase gestionarComprobanteUseCase(ComprobantePort comprobantePort,
+                                                                   ValorizacionPort valorizacionPort,
+                                                                   ObraPort obraPort, ClientePort clientePort,
+                                                                   ExportadorComprobantePdfPort pdfPort, Clock clock,
+                                                                   @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia,
+                                                                   PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarComprobanteUseCase.class,
+                new GestionarComprobante(comprobantePort, valorizacionPort, obraPort, clientePort, pdfPort, clock, horasVigencia),
+                txManager);
     }
 
     @Bean
-    public EliminarMaterialPartida eliminarMaterialPartida(PartidaMaterialPort partidaMaterialPort) {
-        return new EliminarMaterialPartida(partidaMaterialPort);
-    }
-
-    // ---------- Avances físicos (RF-05) ----------
-
-    @Bean
-    public ObtenerAvanceObra obtenerAvanceObra(ObraPort obraPort, PartidaPort partidaPort,
-                                               AvancePartidaPort avancePort) {
-        return new ObtenerAvanceObra(obraPort, partidaPort, avancePort);
+    public GestionarTipoCambioUseCase gestionarTipoCambioUseCase(TipoCambioPort tipoCambioPort, Clock clock,
+                                                                 AuditoriaEventoPort auditoriaPort,
+                                                                 PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(GestionarTipoCambioUseCase.class,
+                new GestionarTipoCambio(tipoCambioPort, clock, auditoriaPort), txManager);
     }
 
     @Bean
-    public RegistrarAvance registrarAvance(AvancePartidaPort avancePort, PartidaPort partidaPort,
-                                           ObraPort obraPort, ObtenerAvanceObra obtenerAvanceObra, Clock clock) {
-        return new RegistrarAvance(avancePort, partidaPort, obraPort, obtenerAvanceObra, clock);
-    }
-
-    @Bean
-    public ListarAvances listarAvances(AvancePartidaPort avancePort) {
-        return new ListarAvances(avancePort);
-    }
-
-    // ---------- Materiales y proveedores (RF-06, RF-09) ----------
-
-    @Bean
-    public ListarMateriales listarMateriales(MaterialPort materialPort) {
-        return new ListarMateriales(materialPort);
-    }
-
-    @Bean
-    public ListarAlertasStock listarAlertasStock(MaterialPort materialPort) {
-        return new ListarAlertasStock(materialPort);
-    }
-
-    @Bean
-    public GuardarMaterial guardarMaterial(MaterialPort materialPort) {
-        return new GuardarMaterial(materialPort);
-    }
-
-    @Bean
-    public EliminarMaterial eliminarMaterial(MaterialPort materialPort) {
-        return new EliminarMaterial(materialPort);
-    }
-
-    @Bean
-    public ListarProveedores listarProveedores(ProveedorPort proveedorPort) {
-        return new ListarProveedores(proveedorPort);
-    }
-
-    @Bean
-    public GuardarProveedor guardarProveedor(ProveedorPort proveedorPort) {
-        return new GuardarProveedor(proveedorPort);
-    }
-
-    @Bean
-    public EliminarProveedor eliminarProveedor(ProveedorPort proveedorPort) {
-        return new EliminarProveedor(proveedorPort);
-    }
-
-    // ---------- Compras y consumos (RF-07, RF-08) ----------
-
-    @Bean
-    public ListarCompras listarCompras(CompraPort compraPort) {
-        return new ListarCompras(compraPort);
-    }
-
-    @Bean
-    public RegistrarCompra registrarCompra(CompraPort compraPort, ProveedorPort proveedorPort,
-                                           ObraPort obraPort, MaterialPort materialPort,
-                                           EgresoPort egresoPort, Clock clock) {
-        return new RegistrarCompra(compraPort, proveedorPort, obraPort, materialPort, egresoPort, clock);
-    }
-
-    @Bean
-    public ListarConsumos listarConsumos(ConsumoPort consumoPort) {
-        return new ListarConsumos(consumoPort);
-    }
-
-    @Bean
-    public RegistrarConsumo registrarConsumo(ConsumoPort consumoPort, MaterialPort materialPort,
-                                             PartidaPort partidaPort, ObraPort obraPort, Clock clock) {
-        return new RegistrarConsumo(consumoPort, materialPort, partidaPort, obraPort, clock);
-    }
-
-    @Bean
-    public ObtenerConsumoAcumuladoPartida obtenerConsumoAcumuladoPartida(ConsumoPort consumoPort) {
-        return new ObtenerConsumoAcumuladoPartida(consumoPort);
-    }
-
-    // ---------- Personal, asistencia y producción (RF-10, RF-11, RF-12) ----------
-
-    @Bean
-    public ListarEmpleados listarEmpleados(EmpleadoPort empleadoPort) {
-        return new ListarEmpleados(empleadoPort);
-    }
-
-    @Bean
-    public GuardarEmpleado guardarEmpleado(EmpleadoPort empleadoPort) {
-        return new GuardarEmpleado(empleadoPort);
-    }
-
-    @Bean
-    public EliminarEmpleado eliminarEmpleado(EmpleadoPort empleadoPort) {
-        return new EliminarEmpleado(empleadoPort);
-    }
-
-    @Bean
-    public ListarAsistencias listarAsistencias(AsistenciaPort asistenciaPort) {
-        return new ListarAsistencias(asistenciaPort);
-    }
-
-    @Bean
-    public RegistrarAsistencia registrarAsistencia(AsistenciaPort asistenciaPort, EmpleadoPort empleadoPort,
-                                                   ObraPort obraPort, Clock clock) {
-        return new RegistrarAsistencia(asistenciaPort, empleadoPort, obraPort, clock);
-    }
-
-    @Bean
-    public RegistrarAsistenciaLote registrarAsistenciaLote(RegistrarAsistencia registrarAsistencia) {
-        return new RegistrarAsistenciaLote(registrarAsistencia);
-    }
-
-    @Bean
-    public ListarProduccion listarProduccion(ProduccionPort produccionPort) {
-        return new ListarProduccion(produccionPort);
-    }
-
-    @Bean
-    public RegistrarProduccion registrarProduccion(ProduccionPort produccionPort, EmpleadoPort empleadoPort,
-                                                   PartidaPort partidaPort, ObraPort obraPort,
-                                                   AsistenciaPort asistenciaPort, Clock clock) {
-        return new RegistrarProduccion(produccionPort, empleadoPort, partidaPort, obraPort, asistenciaPort, clock);
-    }
-
-    // --- Finanzas (Parte 7) ---
-
-    @Bean
-    public ListarIngresos listarIngresos(IngresoPort ingresoPort) {
-        return new ListarIngresos(ingresoPort);
-    }
-
-    @Bean
-    public RegistrarIngreso registrarIngreso(IngresoPort ingresoPort, ObraPort obraPort, Clock clock) {
-        return new RegistrarIngreso(ingresoPort, obraPort, clock);
-    }
-
-    @Bean
-    public ListarEgresos listarEgresos(EgresoPort egresoPort) {
-        return new ListarEgresos(egresoPort);
-    }
-
-    @Bean
-    public RegistrarEgreso registrarEgreso(EgresoPort egresoPort, ObraPort obraPort, Clock clock) {
-        return new RegistrarEgreso(egresoPort, obraPort, clock);
-    }
-
-    @Bean
-    public ListarCierresPlanilla listarCierresPlanilla(CierrePlanillaPort cierrePlanillaPort) {
-        return new ListarCierresPlanilla(cierrePlanillaPort);
-    }
-
-    @Bean
-    public CerrarPlanilla cerrarPlanilla(CierrePlanillaPort cierrePort, ObraPort obraPort,
-                                         AsistenciaPort asistenciaPort, EmpleadoPort empleadoPort,
-                                         EgresoPort egresoPort, Clock clock) {
-        return new CerrarPlanilla(cierrePort, obraPort, asistenciaPort, empleadoPort, egresoPort, clock);
-    }
-
-    @Bean
-    public PrevisualizarPlanilla previsualizarPlanilla(CierrePlanillaPort cierrePort, ObraPort obraPort,
-                                                       AsistenciaPort asistenciaPort, EmpleadoPort empleadoPort,
-                                                       Clock clock) {
-        return new PrevisualizarPlanilla(cierrePort, obraPort, asistenciaPort, empleadoPort, clock);
-    }
-
-    // --- Reportes (Parte 8) ---
-
-    @Bean
-    public GenerarReporte generarReporte(ReporteQueryPort reporteQueryPort) {
-        return new GenerarReporte(reporteQueryPort);
-    }
-
-    @Bean
-    public ExportarReporte exportarReporte(GenerarReporte generarReporte, ExportadorReportePort exportadorPort) {
-        return new ExportarReporte(generarReporte, exportadorPort);
-    }
-
-    // --- Clientes, Valorizaciones, Comprobantes y Pagos ---
-
-    @Bean
-    public ListarClientes listarClientes(ClientePort clientePort) {
-        return new ListarClientes(clientePort);
-    }
-
-    @Bean
-    public GuardarCliente guardarCliente(ClientePort clientePort) {
-        return new GuardarCliente(clientePort);
-    }
-
-    @Bean
-    public EliminarCliente eliminarCliente(ClientePort clientePort) {
-        return new EliminarCliente(clientePort);
-    }
-
-    @Bean
-    public ListarValorizaciones listarValorizaciones(ValorizacionPort valorizacionPort) {
-        return new ListarValorizaciones(valorizacionPort);
-    }
-
-    @Bean
-    public RegistrarValorizacion registrarValorizacion(ValorizacionPort valorizacionPort, ObraPort obraPort,
-                                                       PartidaPort partidaPort, AvancePartidaPort avancePartidaPort,
-                                                       Clock clock) {
-        return new RegistrarValorizacion(valorizacionPort, obraPort, partidaPort, avancePartidaPort, clock);
-    }
-
-    @Bean
-    public ListarComprobantes listarComprobantes(ComprobantePort comprobantePort) {
-        return new ListarComprobantes(comprobantePort);
-    }
-
-    @Bean
-    public EmitirComprobante emitirComprobante(ComprobantePort comprobantePort, ValorizacionPort valorizacionPort,
-                                               Clock clock,
-                                               @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia) {
-        return new EmitirComprobante(comprobantePort, valorizacionPort, clock, horasVigencia);
-    }
-
-    @Bean
-    public GenerarPdfComprobante generarPdfComprobante(ComprobantePort comprobantePort, ValorizacionPort valorizacionPort,
-                                                       ObraPort obraPort, ClientePort clientePort,
-                                                       ExportadorComprobantePdfPort pdfPort) {
-        return new GenerarPdfComprobante(comprobantePort, valorizacionPort, obraPort, clientePort, pdfPort);
-    }
-
-    @Bean
-    public GestionarTipoCambio gestionarTipoCambio(TipoCambioPort tipoCambioPort, Clock clock) {
-        return new GestionarTipoCambio(tipoCambioPort, clock);
-    }
-
-    @Bean
-    public ListarPagos listarPagos(PagoPort pagoPort) {
-        return new ListarPagos(pagoPort);
-    }
-
-    @Bean
-    public ProcesarPago procesarPago(PagoPort pagoPort, ObraPort obraPort, ValorizacionPort valorizacionPort,
-                                     ComprobantePort comprobantePort, IngresoPort ingresoPort,
-                                     TipoCambioPort tipoCambioPort, PasarelaPagoPort pasarelaPagoPort, Clock clock,
-                                     @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia) {
+    public ProcesarPago procesarPagoInterno(PagoPort pagoPort, ObraPort obraPort, ValorizacionPort valorizacionPort,
+                                            ComprobantePort comprobantePort, IngresoPort ingresoPort,
+                                            TipoCambioPort tipoCambioPort, PasarelaPagoPort pasarelaPagoPort,
+                                            Clock clock,
+                                            @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia) {
         return new ProcesarPago(pagoPort, obraPort, valorizacionPort, comprobantePort, ingresoPort,
                 tipoCambioPort, pasarelaPagoPort, clock, horasVigencia);
     }
 
     @Bean
-    public ConsultarEnlacePagoPublico consultarEnlacePagoPublico(ComprobantePort comprobantePort,
-                                                                     ValorizacionPort valorizacionPort,
-                                                                     ObraPort obraPort, ClientePort clientePort,
-                                                                     TipoCambioPort tipoCambioPort,
-                                                                     PasarelaPagoPort pasarelaPagoPort, Clock clock,
-                                                                     PagoPort pagoPort,
-                                                                     @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia) {
-        return new ConsultarEnlacePagoPublico(comprobantePort, valorizacionPort, obraPort, clientePort,
+    public GestionarCobranzaUseCase gestionarCobranzaUseCase(PagoPort pagoPort,
+                                                             ProcesarPago procesarPagoInterno,
+                                                             ComprobantePort comprobantePort,
+                                                             ValorizacionPort valorizacionPort,
+                                                             ObraPort obraPort, ClientePort clientePort,
+                                                             TipoCambioPort tipoCambioPort,
+                                                             PasarelaPagoPort pasarelaPagoPort, Clock clock,
+                                                             @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia,
+                                                             PlatformTransactionManager txManager) {
+        ConsultarEnlacePagoPublico enlace = new ConsultarEnlacePagoPublico(
+                comprobantePort, valorizacionPort, obraPort, clientePort,
                 tipoCambioPort, pasarelaPagoPort, clock, pagoPort, horasVigencia);
+        return TransaccionalProxy.envolver(GestionarCobranzaUseCase.class,
+                new GestionarCobranza(pagoPort, procesarPagoInterno, enlace),
+                txManager, PagoRechazadoException.class);
     }
 
     @Bean
-    public GestionarValorizacionPagoUseCase gestionarValorizacionPagoUseCase(RegistrarValorizacion registrarValorizacion,
-                                                                             EmitirComprobante emitirComprobante,
-                                                                             ProcesarPago procesarPago) {
-        return new GestionarValorizacionPagoUseCase() {
-            @Override
-            public Valorizacion registrarValorizacion(UsuarioSesion actor, Integer idObra,
-                                                      LocalDate periodoInicio, LocalDate periodoFin,
-                                                      LocalDate fechaEmision) {
-                return registrarValorizacion.ejecutar(actor, idObra, periodoInicio, periodoFin, fechaEmision);
-            }
+    public ProcesarPagoExternoUseCase procesarPagoExternoUseCase(ProcesarPago procesarPagoInterno,
+                                                                 PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(ProcesarPagoExternoUseCase.class,
+                new ProcesarPagoExterno(procesarPagoInterno),
+                txManager, PagoRechazadoException.class);
+    }
 
-            @Override
-            public Comprobante emitirComprobante(UsuarioSesion actor, Integer idValorizacion,
-                                                 String tipoComprobante, String serieNumero) {
-                return emitirComprobante.ejecutar(actor, idValorizacion, tipoComprobante, serieNumero);
-            }
-
-            @Override
-            public Pago procesarPago(UsuarioSesion actor, Integer idObra, Integer idValorizacion,
-                                     Integer idComprobante, BigDecimal monto, String metodoPago, String codigoOperacion) {
-                return procesarPago.ejecutar(actor, idObra, idValorizacion, idComprobante, monto, metodoPago, codigoOperacion);
-            }
-        };
+    @Bean
+    public ProcesarPagoTarjetaUseCase procesarPagoTarjetaUseCase(ProcesarPago procesarPagoInterno,
+                                                                 PlatformTransactionManager txManager) {
+        return TransaccionalProxy.envolver(ProcesarPagoTarjetaUseCase.class,
+                new ProcesarPagoTarjeta(procesarPagoInterno),
+                txManager, PagoRechazadoException.class);
     }
 }
