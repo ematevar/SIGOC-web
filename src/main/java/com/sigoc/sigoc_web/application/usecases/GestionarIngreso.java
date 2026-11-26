@@ -3,8 +3,8 @@ package com.sigoc.sigoc_web.application.usecases;
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
 import com.sigoc.sigoc_web.domain.models.Ingreso;
 import com.sigoc.sigoc_web.domain.models.Obra;
-import com.sigoc.sigoc_web.domain.models.RolSistema;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarIngresoUseCase;
 import com.sigoc.sigoc_web.domain.ports.out.IngresoPort;
 import com.sigoc.sigoc_web.domain.ports.out.ObraPort;
 import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
@@ -13,24 +13,33 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
- * RF-13: registra un ingreso financiero dentro del cronograma planificado de una obra activa.
+ * CU-13: Registro y consulta de ingresos financieros dentro del cronograma de una obra activa.
  */
-public class RegistrarIngreso {
+public class GestionarIngreso implements GestionarIngresoUseCase {
+
     private final IngresoPort ingresoPort;
     private final ObraPort obraPort;
     private final Clock clock;
 
-    public RegistrarIngreso(IngresoPort ingresoPort, ObraPort obraPort, Clock clock) {
+    public GestionarIngreso(IngresoPort ingresoPort, ObraPort obraPort, Clock clock) {
         this.ingresoPort = ingresoPort;
         this.obraPort = obraPort;
         this.clock = clock;
     }
 
-    public Ingreso ejecutar(UsuarioSesion actor, Integer idObra, LocalDate fecha,
-                           String concepto, BigDecimal monto) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.CONTADOR);
+    @Override
+    public List<Ingreso> listar(UsuarioSesion actor, Integer idObra) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.VER_INGRESOS);
+        return idObra != null ? ingresoPort.findActivosByObra(idObra) : ingresoPort.findAllActivos();
+    }
+
+    @Override
+    public Ingreso registrar(UsuarioSesion actor, Integer idObra, LocalDate fecha,
+                             String concepto, BigDecimal monto) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.GESTIONAR_INGRESOS);
         BigDecimal montoBd = monto == null ? null : monto.setScale(2, RoundingMode.HALF_UP);
         if (idObra == null || idObra <= 0 || fecha == null || fecha.isAfter(LocalDate.now(clock))
                 || concepto == null || concepto.isBlank()
