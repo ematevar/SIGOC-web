@@ -226,46 +226,56 @@ public class CasosUsoConfig {
     }
 
     @Bean
-    public ProcesarPago procesarPagoInterno(PagoPort pagoPort, ObraPort obraPort, ValorizacionPort valorizacionPort,
-                                            ComprobantePort comprobantePort, IngresoPort ingresoPort,
-                                            TipoCambioPort tipoCambioPort, PasarelaPagoPort pasarelaPagoPort,
-                                            Clock clock,
-                                            @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia) {
-        return new ProcesarPago(pagoPort, obraPort, valorizacionPort, comprobantePort, ingresoPort,
-                tipoCambioPort, pasarelaPagoPort, clock, horasVigencia);
-    }
-
-    @Bean
     public GestionarCobranzaUseCase gestionarCobranzaUseCase(PagoPort pagoPort,
-                                                             ProcesarPago procesarPagoInterno,
-                                                             ComprobantePort comprobantePort,
+                                                             ObraPort obraPort,
                                                              ValorizacionPort valorizacionPort,
-                                                             ObraPort obraPort, ClientePort clientePort,
+                                                             ComprobantePort comprobantePort,
+                                                             IngresoPort ingresoPort,
+                                                             ClientePort clientePort,
                                                              TipoCambioPort tipoCambioPort,
-                                                             PasarelaPagoPort pasarelaPagoPort, Clock clock,
+                                                             PasarelaPagoExternaPort pasarelaExternaPort,
+                                                             Clock clock,
                                                              @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia,
+                                                             AuditoriaEventoPort auditoriaPort,
                                                              PlatformTransactionManager txManager) {
-        ConsultarEnlacePagoPublico enlace = new ConsultarEnlacePagoPublico(
-                comprobantePort, valorizacionPort, obraPort, clientePort,
-                tipoCambioPort, pasarelaPagoPort, clock, pagoPort, horasVigencia);
         return TransaccionalProxy.envolver(GestionarCobranzaUseCase.class,
-                new GestionarCobranza(pagoPort, procesarPagoInterno, enlace),
+                new GestionarCobranza(pagoPort, obraPort, valorizacionPort, comprobantePort, ingresoPort,
+                        clientePort, tipoCambioPort, pasarelaExternaPort, clock, horasVigencia, auditoriaPort),
                 txManager, PagoRechazadoException.class);
     }
 
     @Bean
-    public ProcesarPagoExternoUseCase procesarPagoExternoUseCase(ProcesarPago procesarPagoInterno,
-                                                                 PlatformTransactionManager txManager) {
-        return TransaccionalProxy.envolver(ProcesarPagoExternoUseCase.class,
-                new ProcesarPagoExterno(procesarPagoInterno),
-                txManager, PagoRechazadoException.class);
+    public ProcesarPagoExternoUseCase procesarPagoExternoUseCase(PagoPort pagoPort,
+                                                                 ObraPort obraPort,
+                                                                 ValorizacionPort valorizacionPort,
+                                                                 ComprobantePort comprobantePort,
+                                                                 IngresoPort ingresoPort,
+                                                                 TipoCambioPort tipoCambioPort,
+                                                                 PasarelaPagoExternaPort pasarelaExternaPort,
+                                                                 TransaccionPort transaccionPort,
+                                                                 Clock clock,
+                                                                 @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia,
+                                                                 AuditoriaEventoPort auditoriaPort) {
+        // Sin TransaccionalProxy envolvente: gestiona sus dos transacciones cortas vía TransaccionPort
+        // para ejecutar la llamada HTTP externa fuera de PESSIMISTIC_WRITE.
+        return new ProcesarPagoExterno(pagoPort, obraPort, valorizacionPort, comprobantePort, ingresoPort,
+                tipoCambioPort, pasarelaExternaPort, transaccionPort, clock, horasVigencia, auditoriaPort);
     }
 
     @Bean
-    public ProcesarPagoTarjetaUseCase procesarPagoTarjetaUseCase(ProcesarPago procesarPagoInterno,
+    public ProcesarPagoTarjetaUseCase procesarPagoTarjetaUseCase(PagoPort pagoPort,
+                                                                 ObraPort obraPort,
+                                                                 ValorizacionPort valorizacionPort,
+                                                                 ComprobantePort comprobantePort,
+                                                                 IngresoPort ingresoPort,
+                                                                 PasarelaTarjetaPort pasarelaTarjetaPort,
+                                                                 Clock clock,
+                                                                 @Value("${sigoc.pago.enlace-horas-vigencia:72}") int horasVigencia,
+                                                                 AuditoriaEventoPort auditoriaPort,
                                                                  PlatformTransactionManager txManager) {
         return TransaccionalProxy.envolver(ProcesarPagoTarjetaUseCase.class,
-                new ProcesarPagoTarjeta(procesarPagoInterno),
+                new ProcesarPagoTarjeta(pagoPort, obraPort, valorizacionPort, comprobantePort, ingresoPort,
+                        pasarelaTarjetaPort, clock, horasVigencia, auditoriaPort),
                 txManager, PagoRechazadoException.class);
     }
 }
