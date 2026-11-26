@@ -2,11 +2,16 @@ package com.sigoc.sigoc_web.application.usecases;
 
 import com.sigoc.sigoc_web.domain.exceptions.RecursoNoEncontradoException;
 import com.sigoc.sigoc_web.domain.exceptions.ReglaNegocioException;
+import com.sigoc.sigoc_web.domain.models.Cliente;
 import com.sigoc.sigoc_web.domain.models.Comprobante;
-import com.sigoc.sigoc_web.domain.models.RolSistema;
+import com.sigoc.sigoc_web.domain.models.Obra;
 import com.sigoc.sigoc_web.domain.models.UsuarioSesion;
 import com.sigoc.sigoc_web.domain.models.Valorizacion;
+import com.sigoc.sigoc_web.domain.ports.in.GestionarComprobanteUseCase;
+import com.sigoc.sigoc_web.domain.ports.out.ClientePort;
 import com.sigoc.sigoc_web.domain.ports.out.ComprobantePort;
+import com.sigoc.sigoc_web.domain.ports.out.ExportadorComprobantePdfPort;
+import com.sigoc.sigoc_web.domain.ports.out.ObraPort;
 import com.sigoc.sigoc_web.domain.ports.out.ValorizacionPort;
 import com.sigoc.sigoc_web.domain.services.PoliticaAcceso;
 import com.sigoc.sigoc_web.domain.validators.ValidadorSigoc;
@@ -18,12 +23,12 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
+import java.util.List;
 
 /**
- * RF-19: Emite comprobante interno de valorización (serie correlativa CV01) y genera/renueva
- * un enlace público de pago válido por 72 horas sin login interno.
+ * CU-19: Emisión de comprobantes CV01, renovación de enlaces de cobro y generación de PDF.
  */
-public class EmitirComprobante {
+public class GestionarComprobante implements GestionarComprobanteUseCase {
 
     private static final String SERIE_INTERNA = "CV01";
     private static final BigDecimal FACTOR_IGV = new BigDecimal("1.18");
@@ -31,23 +36,33 @@ public class EmitirComprobante {
 
     private final ComprobantePort comprobantePort;
     private final ValorizacionPort valorizacionPort;
+    private final ObraPort obraPort;
+    private final ClientePort clientePort;
+    private final ExportadorComprobantePdfPort pdfPort;
     private final Clock clock;
     private final int horasVigenciaEnlace;
 
-    public EmitirComprobante(ComprobantePort comprobantePort, ValorizacionPort valorizacionPort, Clock clock) {
-        this(comprobantePort, valorizacionPort, clock, 72);
-    }
-
-    public EmitirComprobante(ComprobantePort comprobantePort, ValorizacionPort valorizacionPort,
-                             Clock clock, int horasVigenciaEnlace) {
+    public GestionarComprobante(ComprobantePort comprobantePort, ValorizacionPort valorizacionPort,
+                                ObraPort obraPort, ClientePort clientePort,
+                                ExportadorComprobantePdfPort pdfPort, Clock clock, int horasVigenciaEnlace) {
         this.comprobantePort = comprobantePort;
         this.valorizacionPort = valorizacionPort;
+        this.obraPort = obraPort;
+        this.clientePort = clientePort;
+        this.pdfPort = pdfPort;
         this.clock = clock;
         this.horasVigenciaEnlace = Math.max(1, horasVigenciaEnlace);
     }
 
-    public Comprobante ejecutar(UsuarioSesion actor, Integer idValorizacion, String tipoComprobante, String serieNumero) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.CONTADOR);
+    @Override
+    public List<Comprobante> listar(UsuarioSesion actor) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.VER_COMPROBANTES);
+        return comprobantePort.findAllActivos();
+    }
+
+    @Override
+    public Comprobante emitir(UsuarioSesion actor, Integer idValorizacion, String tipoComprobante, String serieNumero) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.EMITIR_COMPROBANTE);
         if (idValorizacion == null || idValorizacion <= 0) {
             throw new ReglaNegocioException("Selecciona una valorización válida.");
         }
@@ -121,8 +136,9 @@ public class EmitirComprobante {
         return guardado;
     }
 
+    @Override
     public Comprobante renovarEnlace(UsuarioSesion actor, Integer idComprobante) {
-        PoliticaAcceso.verificar(actor, RolSistema.ADMIN, RolSistema.CONTADOR);
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.EMITIR_COMPROBANTE);
         Comprobante comp = comprobantePort.findByIdParaActualizar(idComprobante)
                 .filter(Comprobante::isActivo)
                 .orElseThrow(() -> new RecursoNoEncontradoException("El comprobante indicado no existe."));
@@ -132,6 +148,33 @@ public class EmitirComprobante {
         comp.setCodigoPago(generarCodigoUnico());
         comp.setVenceEl(LocalDateTime.now(clock).plusHours(horasVigenciaEnlace));
         return comprobantePort.guardar(comp);
+    }
+
+    @Override
+    public ResultadoPdf generarPdf(UsuarioSesion actor, Integer idComprobante) {
+        PoliticaAcceso.verificar(actor, PoliticaAcceso.Permiso.VER_COMPROBANTES);
+        Comprobante comp = comprobantePort.findById(idComprobante)
+                .filter(Comprobante::isActivo)
+                .orElseThrow(() -> new RecursoNoEncontradoException("El comprobante solicitado no existe."));
+        return generarParaComprobante(comp);
+    }
+
+    @Override
+    public ResultadoPdf generarPdfPublico(String codigoPago) {
+        Comprobante comp = comprobantePort.findByCodigoPago(codigoPago)
+                .filter(Comprobante::isActivo)
+                .orElseThrow(() -> new RecursoNoEncontradoException("El enlace de pago no existe."));
+        return generarParaComprobante(comp);
+    }
+
+    private ResultadoPdf generarParaComprobante(Comprobante comp) {
+        Valorizacion val = valorizacionPort.findById(comp.getIdValorizacion()).orElse(null);
+        Obra obra = val != null ? obraPort.findById(val.getIdObra()).orElse(null) : null;
+        Cliente cliente = obra != null && obra.getIdCliente() != null
+                ? clientePort.findById(obra.getIdCliente()).orElse(null)
+                : null;
+        byte[] bytes = pdfPort.generarPdf(comp, val, obra, cliente);
+        return new ResultadoPdf(comp.getSerieNumero() + ".pdf", bytes);
     }
 
     private String generarCodigoUnico() {
