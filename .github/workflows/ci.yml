@@ -23,7 +23,7 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Compilar y ejecutar pruebas con Maven
+      - name: Compilar y ejecutar pruebas unitarias e integración (Surefire + Failsafe)
         run: |
           chmod +x ./mvnw
-          ./mvnw clean test --batch-mode
+          ./mvnw clean verify --batch-mode
